@@ -208,24 +208,32 @@ async function engagementOf(
   return score;
 }
 
-/** يحسب أفضل ثلاثة مواعيد حقيقية للمنصة المطلوبة. */
+/** يحسب أفضل ثلاثة مواعيد حقيقية للمنصة المطلوبة (ويراعي نص المنشور نفسه حين يتوفّر). */
 export async function computeBestTimes(
   admin: Admin,
   workspaceId: string,
   provider: string,
   offsetMin: number,
+  postText?: string,
 ): Promise<BestTimeResult> {
   const now = new Date();
+  const wanted = postText ? keywords(postText) : null;
 
-  // ١) جمهور إنستجرام الحيّ — أقوى إشارة حين تتوفّر.
-  if (provider === "instagram") {
-    const audience = await instagramAudienceHours(admin, workspaceId, offsetMin);
+  // ١) جمهورك الحيّ على المنصة — أقوى إشارة حين تتوفّر.
+  if (provider === "instagram" || provider === "facebook") {
+    const audience =
+      provider === "instagram"
+        ? await instagramAudienceHours(admin, workspaceId, offsetMin)
+        : await facebookAudienceHours(admin, workspaceId, offsetMin);
     if (audience?.length) {
       const top = audience.sort((a, b) => b.score - a.score).slice(0, 3);
       return {
         source: "audience",
         samples: audience.length,
-        note: "محسوبة من ساعات تواجد متابعيك فعلياً على إنستجرام.",
+        note:
+          provider === "instagram"
+            ? "محسوبة من ساعات تواجد متابعيك فعلياً على إنستجرام."
+            : "محسوبة من ساعات تواجد معجبي صفحتك فعلياً على فيسبوك.",
         slots: top.map((h) => {
           const at = nextAt(h.hour, null, offsetMin, now);
           return {
