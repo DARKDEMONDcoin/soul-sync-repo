@@ -13019,16 +13019,20 @@ section:has(> .integration-grid-wave) {
 
 /* الشريط العلوي العائم: حبة واحدة دائرية الأطراف تحمل كل أزرار الموظف. */
 .app-topbar {
-  background: transparent;
+  /* شريط علوي ثابت بلا صندوق: تلاشٍ ناعم يمنع تداخل المحتوى أثناء التمرير. */
+  background: linear-gradient(
+    to bottom,
+    var(--background) 45%,
+    color-mix(in oklab, var(--background) 70%, transparent) 78%,
+    transparent
+  );
 }
 .app-topbar-inner {
-  border: 1px solid color-mix(in oklab, var(--gold) 16%, var(--border));
+  border: 0;
   border-radius: 999px;
-  background: color-mix(in oklab, var(--background) 28%, transparent);
-  box-shadow:
-    0 1px 0 0 color-mix(in oklab, var(--cream) 60%, transparent) inset,
-    0 24px 48px -38px var(--foreground);
-  backdrop-filter: blur(10px) saturate(1.08);
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
 }
 @media (max-width: 640px) {
   .app-topbar {

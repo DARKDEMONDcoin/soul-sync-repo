@@ -268,15 +268,15 @@ export function AppShell({
       </div>
       <aside
         className={cn(
-          "sticky top-0 hidden h-screen w-64 shrink-0 self-start overflow-y-auto border-e border-border bg-card lg:block",
-          embedded && "lg:hidden",
+          "sticky top-0 hidden h-screen w-64 shrink-0 self-start overflow-hidden border-e border-border bg-card md:block",
+          embedded && "md:hidden",
         )}
       >
         <SidebarBody />
       </aside>
 
       {mobileOpen ? (
-        <div className="fixed inset-0 z-50 lg:hidden">
+        <div className="fixed inset-0 z-50 md:hidden">
           <button
             aria-label="إغلاق"
             className="absolute inset-0 bg-foreground/40 backdrop-blur-sm"
@@ -297,7 +297,7 @@ export function AppShell({
         >
           <div className="app-topbar-inner flex min-h-14 items-center gap-2 px-2 py-1.5 sm:gap-2.5 sm:px-3">
             <button
-              className="grid size-10 shrink-0 place-items-center rounded-xl border border-border lg:hidden"
+              className="grid size-10 shrink-0 place-items-center rounded-xl border border-border md:hidden"
               onClick={() => setMobileOpen(true)}
               aria-label="القائمة"
             >
