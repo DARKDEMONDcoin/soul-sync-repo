@@ -197,7 +197,14 @@ export function PublishPanel({
       const seen = new Set(prev.map((m) => m.url));
       return [...prev, ...items.filter((m) => !seen.has(m.url))].slice(0, 10);
     });
-  const dropMedia = (url: string) => setMedia((prev) => prev.filter((m) => m.url !== url));
+  // الحذف يزيل العنصر من المنشور ويحذف الملف فعلياً من مخزن مساحة العمل (لا ملفات يتيمة).
+  const dropMedia = (url: string) => {
+    setMedia((prev) => prev.filter((m) => m.url !== url));
+    void removeMedia({ data: { workspaceId, url } }).catch(() => {
+      /* الحذف من المخزن أفضل جهد: إزالته من المنشور تمّت بالفعل */
+    });
+  };
+
 
   // مواعيد متعددة: المستخدم يختار الكمية والأوقات التي يريدها.
   const [slots, setSlots] = useState<string[]>(() => [
