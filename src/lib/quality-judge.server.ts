@@ -122,10 +122,20 @@ export async function judgeAndImprove(input: JudgeInput): Promise<JudgeVerdict> 
   } catch {
     return fallback;
   }
-  if (!verdict) return fallback;
-  if (verdict.score >= threshold || !verdict.issues.length) {
+  if (!verdict) {
+    // الحَكَم لم يجب، لكن الفحص الحتمي رصد خللاً مؤكداً — نصلحه بدل تسليم مخرج معطوب.
+    if (!mustFix.length) return fallback;
+    verdict = { score: Math.max(0, 82 - audit.penalty), issues: [] };
+  }
+  // ملاحظات الفاحص الحتمي إلزامية: حتى لو رضي الحَكَم عن المخرج، فراغ قالب أو جدول ناقص
+  // أو كلمة ممنوعة خلل مؤكد لا يجوز تسليمه.
+  const issues = [...new Set([...mustFix, ...verdict.issues])].slice(0, 6);
+  const score = Math.max(0, verdict.score - audit.penalty);
+  if (!issues.length || (score >= threshold && !mustFix.length)) {
     return { score: verdict.score, issues: verdict.issues, output: original, revised: false };
   }
+  verdict = { score, issues };
+
 
   // الإصلاح الموجّه يشمل الآن المخرجات الطويلة أيضاً (مقال ركيزة، خطة، تقرير) لأنها
   // أكبر أثراً عند الرسوب. حاجز الطول أدناه (٧٠٪ من الأصل) يمنع فقدان المحتوى،
