@@ -155,6 +155,11 @@ export function PublishPanel({
   // توليد صور بالذكاء الاصطناعي: تلقائياً من نص المنشور، أو من وصف يكتبه المستخدم.
   const makeMedia = useServerFn(generateMedia);
   const [aiOpen, setAiOpen] = useState(false);
+  const [reelOpen, setReelOpen] = useState(false);
+  const [videoOpen, setVideoOpen] = useState(false);
+  const [videoPrompt, setVideoPrompt] = useState("");
+  const [videoSeconds, setVideoSeconds] = useState(8);
+  const [videoAspect, setVideoAspect] = useState<"story" | "square" | "landscape">("story");
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiCount, setAiCount] = useState(1);
   const [aiAspect, setAiAspect] = useState<"square" | "portrait" | "landscape" | "story">("square");
@@ -841,7 +846,7 @@ export function PublishPanel({
             الصورة الأولى.
           </p>
         ) : null}
-        {media.filter((item) => item.kind === "image").length >= 2 ? (
+        {reelOpen || media.filter((item) => item.kind === "image").length >= 2 ? (
           <div className="mt-3">
             <ReelStudio
               workspaceId={workspaceId}
