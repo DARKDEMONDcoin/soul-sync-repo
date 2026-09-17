@@ -35,10 +35,10 @@ const RING: Record<QualityReport["grade"], string> = {
 };
 
 const scoreRing = (score: number) => {
-  if (score >= 90) return "from-jade to-jade-deep";
-  if (score >= 75) return "from-gold to-jade";
-  if (score >= 55) return "from-gold to-coral";
-  return "from-coral to-gold-deep";
+  if (score >= 90) return "is-excellent";
+  if (score >= 75) return "is-good";
+  if (score >= 55) return "is-needs-work";
+  return "is-weak";
 };
 
 /**
@@ -113,7 +113,7 @@ export function PostQuality({
         className="h-auto w-full justify-between gap-3 rounded-xl p-0 text-right hover:bg-transparent"
       >
         <span className="flex min-w-0 items-center gap-3">
-          <span className={`post-quality-score bg-gradient-to-br ${scoreRing(weakest.score)}`}>
+          <span className={`post-quality-score ${scoreRing(weakest.score)}`}>
             <span>{weakest.score}</span>
             <small>/100</small>
           </span>
