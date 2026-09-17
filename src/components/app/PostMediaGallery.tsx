@@ -146,20 +146,32 @@ export function PostMediaGallery({ media, onRemove, onError }: Props) {
         {media.length > 1 ? (
           <div className="post-media-strip" role="tablist" aria-label="وسائط المنشور">
             {media.map((item, itemIndex) => (
-              <button
-                key={item.url}
-                type="button"
-                role="tab"
-                aria-selected={itemIndex === index}
-                className={cn("post-media-thumb", itemIndex === index && "is-active")}
-                onClick={() => setIndex(itemIndex)}
-              >
-                {item.kind === "image" ? (
-                  <img src={item.url} alt="" loading="lazy" />
-                ) : (
-                  <video src={item.url} muted preload="metadata" />
-                )}
-              </button>
+              <div key={item.url} className="post-media-thumb-wrap">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={itemIndex === index}
+                  className={cn("post-media-thumb", itemIndex === index && "is-active")}
+                  onClick={() => setIndex(itemIndex)}
+                >
+                  {item.kind === "image" ? (
+                    <img src={item.url} alt="" loading="lazy" />
+                  ) : (
+                    <video src={item.url} muted preload="metadata" />
+                  )}
+                </button>
+                {onRemove ? (
+                  <button
+                    type="button"
+                    className="post-media-thumb-remove"
+                    onClick={() => onRemove(item.url)}
+                    aria-label={`حذف الوسيطة ${itemIndex + 1}`}
+                    title="حذف"
+                  >
+                    <X className="size-3" strokeWidth={3} />
+                  </button>
+                ) : null}
+              </div>
             ))}
           </div>
         ) : null}
