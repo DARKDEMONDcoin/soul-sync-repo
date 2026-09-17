@@ -78,10 +78,13 @@ function brokenTable(text: string): boolean {
       headerCols = 0;
       continue;
     }
-    const cols = trimmed.split("|").filter((c) => c.trim().length).length;
+    // عدّ الأعمدة بحدود الأنابيب لا بالخلايا غير الفارغة، حتى لا تُحسب الخلية الفارغة نقصاً.
+    const cells = trimmed.replace(/^\|/, "").replace(/\|$/, "").split("|");
+    const cols = cells.length;
     if (/^\|[\s:|-]+\|?$/.test(trimmed)) continue;
     if (!headerCols) headerCols = cols;
-    else if (cols && Math.abs(cols - headerCols) > 1) return true;
+    else if (cols !== headerCols) return true;
+
   }
   return false;
 }
