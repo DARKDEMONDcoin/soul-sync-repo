@@ -330,22 +330,28 @@ export function PublishPanel({
     if (!list.length) return;
     setUploading(true);
     setNote(null);
-    try {
-      const added: Media[] = [];
-      for (const file of list.slice(0, 10)) {
+    // فشل ملف واحد لا يُسقط بقية الملفات: نرفع كل ملف على حدة ونلخّص النتيجة للمستخدم.
+    const added: Media[] = [];
+    const failed: string[] = [];
+    for (const file of list.slice(0, 10)) {
+      try {
         const fd = new FormData();
         fd.set("workspaceId", workspaceId);
         fd.set("file", file);
         const r = await upload({ data: fd });
         added.push({ url: r.url, kind: r.kind, label: r.name });
+      } catch (e) {
+        failed.push(`${file.name}: ${e instanceof Error ? e.message : "تعذّر الرفع"}`);
       }
-      addMedia(added);
-    } catch (e) {
-      setNote(e instanceof Error ? e.message : "تعذّر رفع الملف.");
-    } finally {
-      setUploading(false);
-      if (fileRef.current) fileRef.current.value = "";
     }
+    if (added.length) addMedia(added);
+    if (failed.length)
+      setNote(
+        `${added.length ? `تم رفع ${added.length} ملفاً. ` : ""}تعذّر رفع: ${failed.join(" · ")}`,
+      );
+    setUploading(false);
+    if (fileRef.current) fileRef.current.value = "";
+
   };
 
   /** يولّد صوراً: تلقائياً من نص المنشور، أو من وصف كتبه المستخدم بنفسه. */
