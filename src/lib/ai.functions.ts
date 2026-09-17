@@ -970,7 +970,7 @@ export async function runEmployeeTurn(
     const originalReply = reply;
     // المخرجات القصيرة (منشور، بريد، ردّ جاهز) كانت تمرّ بلا مراجعة — والآن تُراجَع أيضاً،
     // فجودة المخرج القصير لا تقلّ أهمية عن التقرير الطويل.
-    const shouldJudge = intent === "work" && reply.length > 300;
+    const shouldJudge = intent === "work" && reply.length > 120;
 
     if (shouldJudge) emit({ type: "step", label: "أراجع جودة المخرج قبل تسليمه لك" });
     const judgeTask = !shouldJudge

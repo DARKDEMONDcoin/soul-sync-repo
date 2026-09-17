@@ -90,20 +90,35 @@ function brokenTable(text: string): boolean {
 }
 
 /** نوع المخرج المستنتج من الطلب ونص المخرج نفسه. */
-export type OutputKind = "email" | "article" | "report" | "proposal" | "plan" | "generic";
+export type OutputKind =
+  | "email"
+  | "article"
+  | "report"
+  | "proposal"
+  | "plan"
+  | "social"
+  | "design"
+  | "generic";
 
 export function detectKind(request: string, text: string, employeeId: string): OutputKind {
   const all = `${request}\n${text}`.toLowerCase();
   const ar = `${request}\n${text}`;
-  if (/\b(email|subject)\b/.test(all) || /(?:رسالة|بريد|رد على|الموضوع:)/.test(ar)) return "email";
+  const isEmail = /\b(email|subject)\b/.test(all) || /(?:رسالة|بريد|رد على|الموضوع:)/.test(ar);
+  // منشورات السوشيال ومخرجات التصميم لها معايير قابلة للقياس مثل بقية الأنواع.
+  if (/(?:منشور|تغريدة|كابشن|ستوري|ريلز|كاروسيل|هاشتاق)/.test(ar) && !isEmail) return "social";
+  if (/(?:وصف صورة|بروميت|تصميم|نص بديل|ألوان العلامة|مقاس)/.test(ar) || employeeId === "dana")
+    return "design";
+  if (isEmail) return "email";
   if (/(?:مقال|تدوينة|محتوى الصفحة|meta description|وصف ميتا)/i.test(ar) || employeeId === "nour")
     return "article";
   if (/(?:تقرير|تحليل الأداء|لوحة مؤشرات|قراءة الأرقام)/.test(ar) || employeeId === "adam")
     return "report";
   if (/(?:مقترح|عرض سعر|proposal|تسعير)/i.test(ar)) return "proposal";
   if (/(?:خطة|جدول محتوى|رزنامة|roadmap)/i.test(ar)) return "plan";
+  if (employeeId === "sonny") return "social";
   return "generic";
 }
+
 
 /**
  * يفحص مخرجاً نصياً ويعيد ملاحظات إصلاح محددة. لا يستدعي أي نموذج — حتمي وسريع.
@@ -208,6 +223,34 @@ export function auditOutput(input: {
     if (!/(?:المسؤول|مسؤول|ينفّذه|صاحب المهمة)/.test(text) && /(?:مهام|مهمة)/.test(text))
       add("plan-owner", "حدّد مسؤولاً لكل مهمة ومعيار إنجاز واضحاً.", 10);
   }
+
+  if (kind === "social") {
+    const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+    const hook = lines[0] ?? "";
+    if (hook.length > 95)
+      add("social-hook", "اجعل السطر الأول خطافاً قصيراً (أقل من ٩٠ حرفاً) يوقف التمرير فوراً.", 12);
+    const tags = text.match(/#[\p{L}\p{N}_]+/gu) ?? [];
+    if (tags.length > 12)
+      add("social-hashtags", `قلّل الهاشتاقات إلى ٥–٩ موزّعة بين واسع ومتخصص (الحالي ${tags.length}).`, 8);
+    if (!/[؟?]|(?:احجز|اطلب|جرّب|سجّل|تواصل|اكتب|شارك|احفظ|زور|اشترِ)/.test(text))
+      add("social-cta", "أضف دعوة فعل واحدة واضحة في آخر المنشور (فعل أمر أو سؤال مباشر).", 12);
+    const emojis = (text.match(/\p{Extended_Pictographic}/gu) ?? []).length;
+    if (emojis > 8)
+      add("social-emoji", `قلّل الرموز التعبيرية (الحالي ${emojis}) إلى رمز واحد لكل فقرة كحد أقصى.`, 6);
+    if (/!{2,}|[A-Z]{8,}/.test(text))
+      add("social-shout", "احذف علامات التعجّب المتكررة والكتابة بحروف كبيرة — تقلل الثقة.", 6);
+  }
+
+  if (kind === "design") {
+    if (!/(?:نص بديل|alt)\s*[:：]/i.test(text))
+      add("design-alt", "أضف «نص بديل:» يصف الصورة لمن لا يراها في سطر واحد.", 12);
+    if (!/(?:\d{3,4}\s*[x×]\s*\d{3,4}|مقاس|أبعاد)/i.test(text))
+      add("design-size", "حدّد المقاس بالبكسل المناسب للمنصة (مثال: 1080×1350).", 10);
+    if (!/(?:تباين|contrast|#[0-9a-fA-F]{6})/.test(text))
+      add("design-contrast", "اذكر ألوان العلامة بكودها ونسبة تباين النص (٤٫٥:١ على الأقل).", 8);
+  }
+
+
 
   // مهام بلا تاريخ في مخرجات التنفيذ اليومي (إيفا خصوصاً).
   if (input.employeeId === "eva" && /(?:مهام|المتابعات|خطوات)/.test(text) && !hasDate(text))
