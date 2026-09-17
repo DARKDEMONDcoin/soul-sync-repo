@@ -132,7 +132,23 @@ function ApprovalsPage() {
                   <span className="rounded-full bg-secondary px-2.5 py-0.5 font-bold">
                     {a.kind}
                   </span>
+                  {(() => {
+                    // درجة مراجعة الجودة التي حسبها حَكَم الجودة وقت التنفيذ — كانت مخفية
+                    // داخل خطوات المهمة، والآن تظهر للمالك قبل الاعتماد.
+                    const score = qualityScoreOf(a.steps);
+                    if (score === null) return null;
+                    const good = score >= 82;
+                    return (
+                      <span
+                        title="درجة مراجعة الجودة الداخلية قبل التسليم"
+                        className={`rounded-full px-2.5 py-0.5 font-bold ${good ? "bg-jade/15 text-jade-deep" : "bg-amber-500/15 text-amber-700"}`}
+                      >
+                        جودة {score}/100
+                      </span>
+                    );
+                  })()}
                   <span className="ms-auto text-muted-foreground">{a.scheduled ?? ""}</span>
+
                 </div>
 
                 <h2 className="mt-4 font-display text-lg font-black break-words">{a.title}</h2>
