@@ -44,6 +44,7 @@ type BestTimes = {
 };
 
 const WEEKDAYS = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+const WEEKDAYS_SHORT = ["أحد", "إثنين", "ثلاثاء", "أربعاء", "خميس", "جمعة", "سبت"];
 
 /** يلتقط أول صورة داخل المخرج (رابط مباشر أو صيغة ماركداون). */
 function imageFromOutput(text: string | null | undefined): string | null {
@@ -959,8 +960,10 @@ export function PublishPanel({
               </button>
             </div>
             <div className="post-calendar-weekdays">
-              {WEEKDAYS.map((day) => (
-                <span key={day}>{day.slice(0, 2)}</span>
+              {WEEKDAYS.map((day, dayIndex) => (
+                <span key={day} title={day}>
+                  {WEEKDAYS_SHORT[dayIndex]}
+                </span>
               ))}
             </div>
             <div className="post-calendar-grid">
