@@ -206,7 +206,8 @@ export function PublishPanel({
 
   /** يجلب أفضل المواعيد الحقيقية للمنصة الأولى المختارة (جمهورك ← سجلّك ← متوسطات). */
   const loadBestTimes = async () => {
-    const target = active[0];
+    // نقترح الوقت حتى قبل ربط المنصة: نعتمد المنصة المطلوبة أو أي منصة مربوطة.
+    const target = active[0] ?? requested[0] ?? connected[0];
     if (!target) return;
     setLoadingTimes(true);
     setNote(null);
@@ -1082,7 +1083,9 @@ export function PublishPanel({
                   <button
                     type="button"
                     onClick={() => void loadBestTimes()}
-                    disabled={!active.length || loadingTimes}
+                    disabled={
+                      (!active.length && !requested.length && !connected.length) || loadingTimes
+                    }
                     className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-2 text-xs font-bold hover:bg-secondary disabled:opacity-60"
                   >
                     {loadingTimes ? (
