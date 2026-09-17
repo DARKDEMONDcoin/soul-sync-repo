@@ -859,9 +859,11 @@ export async function runEmployeeTurn(
       needsConnection = null;
     }
 
-    // سِراج: فحص جودة حتمي لكل منشور (هوك، طول المنصة، دعوة، هاشتاقات، حشو، بقايا تنسيق)
-    // وإعادة كتابة موجّهة لأي منشور ضعيف قبل عرضه — لا يخرج من سِراج نص دون المستوى.
-    if (data.employeeId === "sonny" && deliverables.length) {
+    // فحص جودة حتمي لكل منشور من أي موظف (هوك، طول المنصة، دعوة، هاشتاقات، حشو، بقايا تنسيق)
+    // وإعادة كتابة موجّهة لأي منشور ضعيف قبل عرضه — بطاقة النشر مشتركة بين كل الموظفين،
+    // فيجب أن تكون معايير جودة المنشور واحدة لهم جميعاً لا لسِراج وحده.
+    if (deliverables.length) {
+
       try {
         const { autofixPosts } = await import("./post-autofix.server");
         const before = deliverables.map((d) => d.body ?? "");
@@ -966,7 +968,10 @@ export async function runEmployeeTurn(
     // حَكَم الجودة يعمل بالتوازي مع توليد الصورة: مراجعة إلزامية للمخرجات الطويلة
     // وإصلاح واحد موجّه عند الرسوب، بلا إضافة أي انتظار فوق زمن الصورة.
     const originalReply = reply;
-    const shouldJudge = intent === "work" && reply.length > 900;
+    // المخرجات القصيرة (منشور، بريد، ردّ جاهز) كانت تمرّ بلا مراجعة — والآن تُراجَع أيضاً،
+    // فجودة المخرج القصير لا تقلّ أهمية عن التقرير الطويل.
+    const shouldJudge = intent === "work" && reply.length > 450;
+
     if (shouldJudge) emit({ type: "step", label: "أراجع جودة المخرج قبل تسليمه لك" });
     const judgeTask = !shouldJudge
       ? Promise.resolve(null)
