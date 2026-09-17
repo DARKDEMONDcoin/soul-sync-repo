@@ -142,9 +142,12 @@ export function PostQuality({
         />
       </Button>
 
-      <div className="post-quality-meter mt-3" aria-label={`درجة جودة المنشور ${weakest.score} من 100`}>
-        <span style={{ inlineSize: `${weakest.score}%` }} />
-      </div>
+      <progress
+        className="post-quality-meter mt-3"
+        value={weakest.score}
+        max={100}
+        aria-label={`درجة جودة المنشور ${weakest.score} من 100`}
+      />
 
       {open ? (
         <div className="mt-3 space-y-4">
