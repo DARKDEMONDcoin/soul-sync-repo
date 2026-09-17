@@ -13019,13 +13019,8 @@ section:has(> .integration-grid-wave) {
 
 /* الشريط العلوي العائم: حبة واحدة دائرية الأطراف تحمل كل أزرار الموظف. */
 .app-topbar {
-  /* شريط علوي ثابت بلا صندوق: تلاشٍ ناعم يمنع تداخل المحتوى أثناء التمرير. */
-  background: linear-gradient(
-    to bottom,
-    var(--background) 45%,
-    color-mix(in oklab, var(--background) 70%, transparent) 78%,
-    transparent
-  );
+  /* شريط علوي ثابت بلا صندوق ولا خلفية إطلاقاً — مثل مربع الإدخال، يطفو فوق الشات. */
+  background: transparent;
 }
 .app-topbar-inner {
   border: 0;
