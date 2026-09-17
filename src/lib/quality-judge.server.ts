@@ -4,6 +4,8 @@
  * عند رسوبه، ثم يحتفظ بالأفضل. لا يخترع محتوى جديداً ولا يحذف حقائق.
  */
 import { freeChat } from "./nour-research.server";
+import { auditOutput } from "./output-quality";
+
 
 export type JudgeVerdict = {
   /** الدرجة النهائية من ١٠٠ (بعد الإصلاح إن حدث). */
