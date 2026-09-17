@@ -203,9 +203,28 @@ export function PublishPanel({
   const dropMedia = (url: string) => {
     setMedia((prev) => prev.filter((m) => m.url !== url));
     void removeMedia({ data: { workspaceId, url } }).catch(() => {
-      /* الحذف من المخزن أفضل جهد: إزالته من المنشور تمّت بالفعل */
+      // أُزيل من المنشور فعلاً، لكن الملف بقي في المخزن — نُخبر المستخدم بدل الصمت.
+      setNote("أُزيلت من المنشور، لكن تعذّر حذف الملف من المخزن — أعد المحاولة لاحقاً.");
     });
   };
+
+  // «امسح الكل» يحذف كل ملف من المخزن أيضاً، لا أن يخفيها من الشاشة فقط.
+  const clearMedia = () => {
+    const urls = media.map((m) => m.url);
+    setMedia([]);
+    let failed = 0;
+    void Promise.all(
+      urls.map((url) =>
+        removeMedia({ data: { workspaceId, url } }).catch(() => {
+          failed += 1;
+        }),
+      ),
+    ).then(() => {
+      if (failed)
+        setNote(`أُزيلت من المنشور، لكن تعذّر حذف ${failed.toLocaleString("ar-EG")} ملف من المخزن.`);
+    });
+  };
+
 
 
   // مواعيد متعددة: المستخدم يختار الكمية والأوقات التي يريدها.
@@ -656,7 +675,7 @@ export function PublishPanel({
           {media.length ? (
             <button
               type="button"
-              onClick={() => setMedia([])}
+              onClick={clearMedia}
               className="inline-flex items-center gap-1 text-[11px] font-bold text-muted-foreground hover:text-coral"
             >
               <Trash2 className="size-3.5" /> امسح الكل

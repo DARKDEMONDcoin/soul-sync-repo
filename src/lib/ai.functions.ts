@@ -1000,6 +1000,52 @@ export async function runEmployeeTurn(
       reply = verdict.output;
     }
 
+    // المخرجات المتعددة (حملة، جدول أسبوعي، عدة منصات) كانت تُسلَّم بلا مراجعة فردية:
+    // الحَكَم يرى النص المجمّع فقط. الآن يُفحص كل مخرج حتمياً، وما يسقط منها يُعاد إصلاحه.
+    if (deliverables.length > 1) {
+      try {
+        const { auditOutput } = await import("./output-quality");
+        const { judgeAndImprove } = await import("./quality-judge.server");
+        const weak = deliverables
+          .map((d, index) => ({ index, body: d.body ?? "" }))
+          .filter(
+            (d) =>
+              d.body.length > 60 &&
+              auditOutput({
+                text: d.body,
+                employeeId: data.employeeId,
+                request: data.message,
+                bannedWords: workspace.banned_words ?? [],
+              }).penalty > 0,
+          )
+          .slice(0, 4); // سقف يمنع تأخير الرد على الحملات الكبيرة
+
+        const fixes = await Promise.all(
+          weak.map((d) =>
+            judgeAndImprove({
+              employeeId: data.employeeId,
+              request: data.message,
+              output: d.body,
+              criteria: qualityCriteria[data.employeeId] ?? [],
+              bannedWords: workspace.banned_words ?? [],
+            }).catch(() => null),
+          ),
+        );
+
+        fixes.forEach((fix, i) => {
+          const target = weak[i];
+          if (!fix?.revised || !target) return;
+          const old = target.body;
+          deliverables[target.index]!.body = fix.output;
+          if (old && reply.includes(old)) reply = reply.replace(old, fix.output);
+        });
+      } catch (error) {
+        console.warn("[judge] per-deliverable skipped:", error instanceof Error ? error.message : error);
+      }
+    }
+
+
+
     // بعد حَكَم الجودة أيضاً: لا يخرج أي فراغ نائب إلى المستخدم.
     reply = fillPlaceholders(reply, workspace.name, ws.website ?? null, brandProducts);
     for (const d of deliverables) {
