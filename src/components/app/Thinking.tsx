@@ -29,7 +29,7 @@ export function Thinking({
 
   return (
     <div
-      className={cn("flex justify-end gap-3 animate-bubble-in", className)}
+      className={cn("chat-thinking-row flex min-w-0 justify-end gap-3 animate-bubble-in", className)}
       role="status"
       aria-live="polite"
       aria-label={`${name} يجهّز الرد`}
@@ -41,7 +41,7 @@ export function Thinking({
       <div
         className={cn(
           "order-1 min-w-0 rounded-3xl rounded-se-lg border border-border bg-card px-4 py-3 shadow-sm",
-          streaming || step ? "max-w-[min(46rem,82%)]" : "",
+          streaming || step ? "chat-thinking-content max-w-[min(46rem,82%)]" : "",
         )}
       >
         {step ? (

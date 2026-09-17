@@ -44424,6 +44424,15 @@ html {
     padding: 0.5rem 0 0.75rem;
     overflow: visible;
   }
+  .chat-thinking-row {
+    width: 100%;
+    max-width: 100%;
+    gap: 0.5rem;
+  }
+  .chat-thinking-content {
+    width: calc(100% - 2.5rem);
+    max-width: none;
+  }
   .chat-message-content :is(p, li, a, h1, h2, h3, h4, h5, h6) {
     overflow-wrap: anywhere;
   }
