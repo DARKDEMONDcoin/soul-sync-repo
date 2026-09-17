@@ -44380,7 +44380,7 @@ html {
   }
 }
 
-/* الشريط العلوي: بلا غلاف إطلاقاً — يطفو فوق الشات مثل مربع الإدخال (يتجاوز كل القواعد السابقة). */
+/* الشريط العلوي: الشريط نفسه أبيض، من دون الغلاف الملوّن المحيط به. */
 .app-shell header.app-topbar,
 .sahl-app-theme header.app-topbar {
   background: transparent !important;
@@ -44389,7 +44389,7 @@ html {
 .app-shell header.app-topbar .app-topbar-inner,
 .sahl-app-theme header.app-topbar .app-topbar-inner {
   border: 0 !important;
-  background: transparent !important;
+  background: var(--background) !important;
   box-shadow: none !important;
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
