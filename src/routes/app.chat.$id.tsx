@@ -206,14 +206,22 @@ function lastUserBefore(arr: { role: string; body: string }[], idx: number): str
   return "";
 }
 
-/** يقرّر إن كان رد سِراج منشوراً قابلاً للنشر (لا سؤالاً ولا شرحاً قصيراً). */
-function looksPostable(body: string): boolean {
+/**
+ * يقرّر إن كان رد الموظف منشوراً قابلاً للنشر (لا سؤالاً ولا شرحاً قصيراً).
+ * يُطبَّق على كل الموظفين بالتساوي: المنشور القصير (تغريدة/كابشن/ستوري) مقبول
+ * عندما يطلبه المستخدم صراحةً، والنص الطويل بلا هاشتاق يبقى مقبولاً كمنشور.
+ */
+function looksPostable(body: string, request?: string | null): boolean {
   const text = body.trim();
-  if (text.length < 80) return false;
+  if (text.length < 40) return false;
   if (/^[^\n]{0,200}\?\s*$/.test(text)) return false;
   if (isNonPostReply(text)) return false;
-  return /#[^\s#]{2,}/.test(text) || text.length > 220;
+  if (/#[^\s#]{2,}/.test(text)) return true;
+  if (/(تغريدة|تويت|tweet|كابشن|caption|ستور(?:ي|يز)|story|سناب|snap)/iu.test(request ?? ""))
+    return text.length >= 40;
+  return text.length > 220;
 }
+
 
 export const Route = createFileRoute("/app/chat/$id")({
   validateSearch: (s: Record<string, unknown>): { prompt?: string } =>
@@ -1209,7 +1217,7 @@ function ChatView({
                         workspace &&
                         !m.body.includes("(/app/tasks)") &&
                         askedForPublishableOutput(lastUserBefore(arr, idx)) &&
-                        looksPostable(m.body) ? (
+                        looksPostable(m.body, lastUserBefore(arr, idx)) ? (
                           <PostCards
                             workspaceId={workspace.id}
                             employeeId={id}

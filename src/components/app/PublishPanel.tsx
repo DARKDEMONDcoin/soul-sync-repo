@@ -184,6 +184,9 @@ export function PublishPanel({
   const [videoPrompt, setVideoPrompt] = useState("");
   const [videoSeconds, setVideoSeconds] = useState(8);
   const [videoAspect, setVideoAspect] = useState<"story" | "square" | "landscape">("story");
+  const [videoBusy, setVideoBusy] = useState(false);
+  const [videoProgress, setVideoProgress] = useState(0);
+
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiCount, setAiCount] = useState(1);
   const [aiAspect, setAiAspect] = useState<"square" | "portrait" | "landscape" | "story">("square");
@@ -386,6 +389,60 @@ export function PublishPanel({
       setAiBusy(null);
     }
   };
+
+  /**
+   * فيديو حقيقي من وصف المستخدم: نولّد مشاهد الصورة مجاناً ثم نركّبها فيديو
+   * داخل المتصفح (حركة + انتقالات) ونرفعه إلى مخزن مساحة العمل ونرفقه بالمنشور.
+   */
+  const runVideo = async () => {
+    const prompt = videoPrompt.trim();
+    if (prompt.length < 3) {
+      setNote("اكتب وصف الفيديو أولاً.");
+      return;
+    }
+    setVideoBusy(true);
+    setVideoProgress(0);
+    setNote(null);
+    try {
+      const scenes = Math.max(2, Math.min(4, Math.round(videoSeconds / 3)));
+      const r = await makeMedia({
+        data: {
+          workspaceId,
+          prompt,
+          count: scenes,
+          aspect: videoAspect === "landscape" ? "landscape" : videoAspect === "square" ? "square" : "story",
+          mode: "literal",
+        },
+      });
+      if (!r.urls.length) throw new Error("تعذّر توليد مشاهد الفيديو — أعد المحاولة بعد قليل.");
+      const { renderReel } = await import("@/lib/reel-render");
+      const { blob, mime } = await renderReel({
+        scenes: r.urls.map((url) => ({ url })),
+        aspect: videoAspect,
+        secondsPerScene: Math.max(2, Math.round(videoSeconds / r.urls.length)),
+        onProgress: setVideoProgress,
+      });
+      const { supabase } = await import("@/integrations/supabase/client");
+      const ext = mime.includes("mp4") ? "mp4" : "webm";
+      const path = `${workspaceId}/reels/${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("nour-media")
+        .upload(path, blob, { contentType: mime, upsert: false });
+      if (upErr) throw new Error(upErr.message);
+      const { data: signed } = await supabase.storage
+        .from("nour-media")
+        .createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
+      if (!signed?.signedUrl) throw new Error("تعذّر إنشاء رابط الفيديو.");
+      addMedia([{ url: signed.signedUrl, kind: "video", label: "فيديو بالذكاء الاصطناعي" }]);
+      setNote("جهّزنا الفيديو وأرفقناه بالمنشور — يمكنك تشغيله أو حذفه من المعرض بالأعلى.");
+    } catch (e) {
+      setNote(e instanceof Error ? e.message : "تعذّر توليد الفيديو.");
+    } finally {
+      setVideoBusy(false);
+      setVideoProgress(0);
+    }
+  };
+
 
   const run = async (mode: "now" | "later", providers = active) => {
     if (!providers.length) return;
@@ -615,14 +672,15 @@ export function PublishPanel({
 
         {videoOpen ? (
           <div className="mt-3 rounded-2xl border border-dashed border-border bg-card/70 p-3">
-            <p className="text-[11px] font-bold text-muted-foreground">مولّد الفيديو والريلز بالذكاء الاصطناعي — الواجهة جاهزة، وسنربط المزوّد قريباً.</p>
+            <p className="text-[11px] font-bold text-muted-foreground">فيديو بالذكاء الاصطناعي: نولّد مشاهد الوصف ثم نركّبها فيديو جاهزاً للنشر — مجاناً.</p>
             <textarea value={videoPrompt} onChange={(e) => setVideoPrompt(e.target.value)} rows={2} dir="auto" placeholder="صف الفيديو: مثلاً «لقطة قريبة لفنجان قهوة مع بخار ونص ترويجي»" className="mt-2 w-full resize-none rounded-xl border border-border bg-background p-2.5 text-sm outline-none focus:ring-2 focus:ring-foreground/20" />
             <div className="post-media-settings mt-2 flex flex-wrap items-center gap-2">
               <label className="inline-flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground">المدة<select value={videoSeconds} onChange={(e) => setVideoSeconds(Number(e.target.value))} className="rounded-full border border-border bg-card px-2.5 py-1.5 text-xs font-bold text-foreground">{[5, 8, 10, 15].map((n) => <option key={n} value={n}>{n} ثانية</option>)}</select></label>
               <label className="inline-flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground">المقاس<select value={videoAspect} onChange={(e) => setVideoAspect(e.target.value as typeof videoAspect)} className="rounded-full border border-border bg-card px-2.5 py-1.5 text-xs font-bold text-foreground"><option value="story">ريلز / ستوري (9:16)</option><option value="square">مربع (1:1)</option><option value="landscape">عرضي (16:9)</option></select></label>
-              <button type="button" disabled title="سيُربط مزوّد توليد الفيديو قريباً" className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-4 py-1.5 text-xs font-bold text-background opacity-60"><Clapperboard className="size-3.5" /> ولّد الفيديو · قريباً</button>
+              <button type="button" onClick={() => void runVideo()} disabled={videoBusy || !videoPrompt.trim() || media.length >= 10} className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-4 py-1.5 text-xs font-bold text-background disabled:opacity-60">{videoBusy ? <Loader2 className="size-3.5 animate-spin" /> : <Clapperboard className="size-3.5" />}{videoBusy ? `جارٍ التركيب ${Math.round(videoProgress * 100)}%` : "ولّد الفيديو"}</button>
             </div>
           </div>
+
         ) : null}
 
         {aiOpen ? (
