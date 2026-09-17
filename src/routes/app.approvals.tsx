@@ -28,6 +28,21 @@ export const Route = createFileRoute("/app/approvals")({
   component: ApprovalsPage,
 });
 
+/** يستخرج درجة مراجعة الجودة المخزّنة ضمن خطوات المهمة (مثال: «مراجعة الجودة — 88/100»). */
+function qualityScoreOf(steps: unknown): number | null {
+  if (!Array.isArray(steps)) return null;
+  for (const step of steps) {
+    const label = (step as { label?: unknown })?.label;
+    if (typeof label !== "string") continue;
+    const match = label.match(/(\d{1,3})\s*\/\s*100/);
+    if (match?.[1]) {
+      const value = Number(match[1]);
+      if (value > 0 && value <= 100) return value;
+    }
+  }
+  return null;
+}
+
 function ApprovalsPage() {
   const { data: workspace } = useWorkspace();
   const { data: tasks, isLoading } = useTasks(workspace?.id);
