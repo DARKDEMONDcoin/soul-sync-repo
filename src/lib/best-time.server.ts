@@ -73,6 +73,84 @@ async function graph(url: string): Promise<unknown | null> {
   }
 }
 
+/** كلمات المنشور المميّزة — تُستخدم لمطابقة المحتوى الشبيه في سجلّ المستخدم. */
+function keywords(text: string): Set<string> {
+  const cleaned = text
+    .replace(/https?:\/\/\S+/g, " ")
+    .replace(/[^\p{L}\p{N}\s#]/gu, " ")
+    .toLowerCase();
+  const stop = new Set([
+    "من",
+    "في",
+    "على",
+    "الى",
+    "إلى",
+    "عن",
+    "مع",
+    "هذا",
+    "هذه",
+    "التي",
+    "الذي",
+    "كل",
+    "أو",
+    "او",
+    "ما",
+    "لا",
+    "the",
+    "and",
+    "for",
+    "with",
+    "you",
+    "your",
+  ]);
+  return new Set(
+    cleaned
+      .split(/\s+/)
+      .map((w) => w.replace(/^#/, ""))
+      .filter((w) => w.length >= 3 && !stop.has(w))
+      .slice(0, 120),
+  );
+}
+
+/** تشابه جاكارد بين منشور المستخدم الحالي ومنشور سابق (0..1). */
+function similarity(a: Set<string>, b: Set<string>): number {
+  if (!a.size || !b.size) return 0;
+  let shared = 0;
+  for (const word of a) if (b.has(word)) shared += 1;
+  return shared / (a.size + b.size - shared);
+}
+
+/** إشارة الجمهور الحيّة لفيسبوك: عدد المعجبين المتصلين في كل ساعة. */
+async function facebookAudienceHours(
+  admin: Admin,
+  workspaceId: string,
+  offsetMin: number,
+): Promise<{ hour: number; score: number }[] | null> {
+  const target = await metaTarget(admin, workspaceId, "facebook");
+  if (!target?.pageId || !target.pageToken) return null;
+  const payload = await graph(
+    `${GRAPH}/${target.pageId}/insights?metric=page_fans_online_per_day&period=day&access_token=${encodeURIComponent(target.pageToken)}`,
+  );
+  const data = (payload as { data?: { values?: { value?: unknown }[] }[] } | null)?.data;
+  if (!Array.isArray(data) || !data.length) return null;
+
+  const totals = new Map<number, number>();
+  for (const entry of data) {
+    for (const point of entry.values ?? []) {
+      const value = point.value;
+      if (!value || typeof value !== "object") continue;
+      for (const [rawHour, count] of Object.entries(value as Record<string, unknown>)) {
+        const utcHour = Number(rawHour);
+        if (!Number.isFinite(utcHour) || typeof count !== "number") continue;
+        const localHour = (((utcHour + Math.round(offsetMin / 60)) % 24) + 24) % 24;
+        totals.set(localHour, (totals.get(localHour) ?? 0) + count);
+      }
+    }
+  }
+  if (!totals.size) return null;
+  return [...totals].map(([hour, score]) => ({ hour, score }));
+}
+
 /** إشارة الجمهور الحيّة لإنستجرام: عدد المتابعين المتصلين في كل ساعة. */
 async function instagramAudienceHours(
   admin: Admin,
