@@ -414,12 +414,17 @@ export function PublishPanel({
           mode: "literal",
         },
       });
-      if (!r.urls.length) throw new Error("تعذّر توليد مشاهد الفيديو — أعد المحاولة بعد قليل.");
+      // نبقي فقط الصور المحفوظة في مخزن مساحة العمل — روابط المزوّد الخارجي
+      // تُرفض عند القراءة داخل المتصفح ولا تصلح لتركيب الفيديو.
+      const sceneUrls = r.urls.filter((u) => u.includes("/storage/v1/object/"));
+      if (!sceneUrls.length)
+        throw new Error("تعذّر تجهيز مشاهد الفيديو الآن — أعد المحاولة بعد لحظات.");
       const { renderReel } = await import("@/lib/reel-render");
       const { blob, mime } = await renderReel({
-        scenes: r.urls.map((url) => ({ url })),
+        scenes: sceneUrls.map((url) => ({ url })),
         aspect: videoAspect,
-        secondsPerScene: Math.max(2, Math.round(videoSeconds / r.urls.length)),
+        secondsPerScene: Math.max(2, Math.round(videoSeconds / sceneUrls.length)),
+
         onProgress: setVideoProgress,
       });
       const { supabase } = await import("@/integrations/supabase/client");
