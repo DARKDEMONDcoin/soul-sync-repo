@@ -44379,3 +44379,18 @@ html {
     font-size: 0.88rem;
   }
 }
+
+/* الشريط العلوي: بلا غلاف إطلاقاً — يطفو فوق الشات مثل مربع الإدخال (يتجاوز كل القواعد السابقة). */
+.app-shell header.app-topbar,
+.sahl-app-theme header.app-topbar {
+  background: transparent !important;
+  backdrop-filter: none !important;
+}
+.app-shell header.app-topbar .app-topbar-inner,
+.sahl-app-theme header.app-topbar .app-topbar-inner {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
