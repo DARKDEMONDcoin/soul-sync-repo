@@ -81,16 +81,29 @@ export async function judgeAndImprove(input: JudgeInput): Promise<JudgeVerdict> 
   if (original.trim().length < 200) return fallback;
 
   const threshold = input.threshold ?? 82;
+  // فحص حتمي قبل حكم النموذج: بقايا فراغات، بتر، جداول ناقصة، حشو، ادعاءات، كلمات ممنوعة،
+  // ونواقص خاصة بنوع المخرج (بريد/مقال/تقرير/مقترح/خطة). هذه ملاحظات لا تحتمل التقدير،
+  // فتُفرض على الحَكَم بدل انتظار أن ينتبه لها النموذج من تلقاء نفسه.
+  const audit = auditOutput({
+    text: original,
+    employeeId: input.employeeId,
+    request: input.request,
+    bannedWords: input.bannedWords ?? [],
+  });
+  const mustFix = audit.issues.map((i) => i.hint);
+
   // المخرج يُعرض للحَكَم كاملاً تقريباً: القطع عند ٩ آلاف حرف كان يجعله يحكم على نص
   // ناقص فيخصم على «عدم الاكتمال» ظلماً ويُطلق إصلاحاً لا داعي له (وقت مهدور).
   const brief = [
     `طلب المالك:\n${clip(input.request, 1200)}`,
     input.criteria?.length ? `معايير القبول:\n- ${input.criteria.join("\n- ")}` : "",
     input.bannedWords?.length ? `كلمات ممنوعة تماماً: ${input.bannedWords.join("، ")}` : "",
+    mustFix.length ? `أخطاء رصدها فاحص آلي (خذها بعين الاعتبار):\n- ${mustFix.join("\n- ")}` : "",
     `المخرج:\n${clip(original, 28_000)}`,
   ]
     .filter(Boolean)
     .join("\n\n");
+
 
   let verdict: { score: number; issues: string[] } | null = null;
   try {
