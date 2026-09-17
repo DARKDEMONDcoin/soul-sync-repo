@@ -4,6 +4,8 @@
  * عند رسوبه، ثم يحتفظ بالأفضل. لا يخترع محتوى جديداً ولا يحذف حقائق.
  */
 import { freeChat } from "./nour-research.server";
+import { auditOutput } from "./output-quality";
+
 
 export type JudgeVerdict = {
   /** الدرجة النهائية من ١٠٠ (بعد الإصلاح إن حدث). */
@@ -81,16 +83,29 @@ export async function judgeAndImprove(input: JudgeInput): Promise<JudgeVerdict> 
   if (original.trim().length < 200) return fallback;
 
   const threshold = input.threshold ?? 82;
+  // فحص حتمي قبل حكم النموذج: بقايا فراغات، بتر، جداول ناقصة، حشو، ادعاءات، كلمات ممنوعة،
+  // ونواقص خاصة بنوع المخرج (بريد/مقال/تقرير/مقترح/خطة). هذه ملاحظات لا تحتمل التقدير،
+  // فتُفرض على الحَكَم بدل انتظار أن ينتبه لها النموذج من تلقاء نفسه.
+  const audit = auditOutput({
+    text: original,
+    employeeId: input.employeeId,
+    request: input.request,
+    bannedWords: input.bannedWords ?? [],
+  });
+  const mustFix = audit.issues.map((i) => i.hint);
+
   // المخرج يُعرض للحَكَم كاملاً تقريباً: القطع عند ٩ آلاف حرف كان يجعله يحكم على نص
   // ناقص فيخصم على «عدم الاكتمال» ظلماً ويُطلق إصلاحاً لا داعي له (وقت مهدور).
   const brief = [
     `طلب المالك:\n${clip(input.request, 1200)}`,
     input.criteria?.length ? `معايير القبول:\n- ${input.criteria.join("\n- ")}` : "",
     input.bannedWords?.length ? `كلمات ممنوعة تماماً: ${input.bannedWords.join("، ")}` : "",
+    mustFix.length ? `أخطاء رصدها فاحص آلي (خذها بعين الاعتبار):\n- ${mustFix.join("\n- ")}` : "",
     `المخرج:\n${clip(original, 28_000)}`,
   ]
     .filter(Boolean)
     .join("\n\n");
+
 
   let verdict: { score: number; issues: string[] } | null = null;
   try {
@@ -107,10 +122,20 @@ export async function judgeAndImprove(input: JudgeInput): Promise<JudgeVerdict> 
   } catch {
     return fallback;
   }
-  if (!verdict) return fallback;
-  if (verdict.score >= threshold || !verdict.issues.length) {
+  if (!verdict) {
+    // الحَكَم لم يجب، لكن الفحص الحتمي رصد خللاً مؤكداً — نصلحه بدل تسليم مخرج معطوب.
+    if (!mustFix.length) return fallback;
+    verdict = { score: Math.max(0, 82 - audit.penalty), issues: [] };
+  }
+  // ملاحظات الفاحص الحتمي إلزامية: حتى لو رضي الحَكَم عن المخرج، فراغ قالب أو جدول ناقص
+  // أو كلمة ممنوعة خلل مؤكد لا يجوز تسليمه.
+  const issues = [...new Set([...mustFix, ...verdict.issues])].slice(0, 6);
+  const score = Math.max(0, verdict.score - audit.penalty);
+  if (!issues.length || (score >= threshold && !mustFix.length)) {
     return { score: verdict.score, issues: verdict.issues, output: original, revised: false };
   }
+  verdict = { score, issues };
+
 
   // الإصلاح الموجّه يشمل الآن المخرجات الطويلة أيضاً (مقال ركيزة، خطة، تقرير) لأنها
   // أكبر أثراً عند الرسوب. حاجز الطول أدناه (٧٠٪ من الأصل) يمنع فقدان المحتوى،

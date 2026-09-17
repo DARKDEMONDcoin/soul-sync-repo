@@ -59,7 +59,16 @@ export function ReelStudio({ workspaceId, images, aspect, onAttach, attached }: 
   };
 
   const attachVideo = async () => {
-    if (!preview || !workspaceId) return;
+    // لا صمت: المستخدم يجب أن يعرف لماذا لم يحدث شيء.
+    if (!preview) {
+      setError("ابنِ الفيديو أولاً ثم أرفقه بالمنشور.");
+      return;
+    }
+    if (!workspaceId) {
+      setError("مساحة العمل لم تُحمّل بعد — أعد تحميل الصفحة ثم حاول مرة أخرى.");
+      return;
+    }
+
     setBusy(true);
     setError(null);
     try {
