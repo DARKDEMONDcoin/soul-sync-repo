@@ -90,20 +90,35 @@ function brokenTable(text: string): boolean {
 }
 
 /** نوع المخرج المستنتج من الطلب ونص المخرج نفسه. */
-export type OutputKind = "email" | "article" | "report" | "proposal" | "plan" | "generic";
+export type OutputKind =
+  | "email"
+  | "article"
+  | "report"
+  | "proposal"
+  | "plan"
+  | "social"
+  | "design"
+  | "generic";
 
 export function detectKind(request: string, text: string, employeeId: string): OutputKind {
   const all = `${request}\n${text}`.toLowerCase();
   const ar = `${request}\n${text}`;
-  if (/\b(email|subject)\b/.test(all) || /(?:رسالة|بريد|رد على|الموضوع:)/.test(ar)) return "email";
+  const isEmail = /\b(email|subject)\b/.test(all) || /(?:رسالة|بريد|رد على|الموضوع:)/.test(ar);
+  // منشورات السوشيال ومخرجات التصميم لها معايير قابلة للقياس مثل بقية الأنواع.
+  if (/(?:منشور|تغريدة|كابشن|ستوري|ريلز|كاروسيل|هاشتاق)/.test(ar) && !isEmail) return "social";
+  if (/(?:وصف صورة|بروميت|تصميم|نص بديل|ألوان العلامة|مقاس)/.test(ar) || employeeId === "dana")
+    return "design";
+  if (isEmail) return "email";
   if (/(?:مقال|تدوينة|محتوى الصفحة|meta description|وصف ميتا)/i.test(ar) || employeeId === "nour")
     return "article";
   if (/(?:تقرير|تحليل الأداء|لوحة مؤشرات|قراءة الأرقام)/.test(ar) || employeeId === "adam")
     return "report";
   if (/(?:مقترح|عرض سعر|proposal|تسعير)/i.test(ar)) return "proposal";
   if (/(?:خطة|جدول محتوى|رزنامة|roadmap)/i.test(ar)) return "plan";
+  if (employeeId === "sonny") return "social";
   return "generic";
 }
+
 
 /**
  * يفحص مخرجاً نصياً ويعيد ملاحظات إصلاح محددة. لا يستدعي أي نموذج — حتمي وسريع.
