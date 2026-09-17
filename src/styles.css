@@ -44398,3 +44398,103 @@ html {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
 }
+
+/* محادثة الهاتف: كل رد وبطاقة يبقيان داخل الشاشة، دون قص أفقي. */
+@media (max-width: 640px) {
+  .chat-message-column {
+    padding-inline: 0.65rem !important;
+    overflow-x: clip;
+  }
+  .chat-message-column > div,
+  .chat-message-column .chat-message-row,
+  .chat-message-column .chat-message-content {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .chat-message-column .chat-message-row {
+    width: 100%;
+    gap: 0.5rem;
+  }
+  .chat-message-column .is-assistant {
+    width: 100%;
+    max-width: 100%;
+  }
+  .chat-message-column .is-assistant .chat-message-content {
+    width: calc(100% - 2.5rem);
+    padding: 0.5rem 0 0.75rem;
+    overflow: visible;
+  }
+  .chat-message-content :is(p, li, a, h1, h2, h3, h4, h5, h6) {
+    overflow-wrap: anywhere;
+  }
+  .chat-message-content :is(pre, table) {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .chat-message-content img,
+  .chat-message-content video,
+  .post-publisher-panel,
+  .post-publisher-panel > * {
+    max-width: 100%;
+  }
+  .post-publisher-panel {
+    width: 100%;
+    margin-inline: 0;
+    padding: 0.75rem;
+    overflow: hidden;
+  }
+  .post-media-tool-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .post-media-tool-grid > button {
+    width: 100%;
+    min-width: 0;
+    min-height: 2.75rem;
+    justify-content: center;
+    border-radius: 0.75rem;
+    line-height: 1.35;
+    text-align: center;
+    white-space: normal;
+  }
+  .post-media-settings {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  .post-media-settings > label,
+  .post-media-settings > button,
+  .post-media-settings select {
+    width: 100%;
+  }
+  .post-media-settings > label {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .post-schedule-row {
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .post-schedule-row > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .post-schedule-row > input[type="date"],
+  .post-schedule-row > span {
+    width: 100%;
+  }
+  .post-schedule-row > button {
+    white-space: normal;
+  }
+  .post-schedule-row > button:nth-of-type(3) {
+    grid-column: 1 / -1;
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 380px) {
+  .post-media-tool-grid {
+    grid-template-columns: 1fr;
+  }
+}
