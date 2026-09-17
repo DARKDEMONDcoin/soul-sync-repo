@@ -181,7 +181,7 @@ export async function judgeAndImprove(input: JudgeInput): Promise<JudgeVerdict> 
       text: fixed,
       employeeId: input.employeeId ?? "",
       request: input.request,
-      bannedWords: input.bannedWords,
+      bannedWords: input.bannedWords ?? [],
     });
     if (after.penalty > audit.penalty) {
       return { score: verdict.score, issues: verdict.issues, output: original, revised: false };
