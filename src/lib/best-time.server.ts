@@ -73,6 +73,84 @@ async function graph(url: string): Promise<unknown | null> {
   }
 }
 
+/** كلمات المنشور المميّزة — تُستخدم لمطابقة المحتوى الشبيه في سجلّ المستخدم. */
+function keywords(text: string): Set<string> {
+  const cleaned = text
+    .replace(/https?:\/\/\S+/g, " ")
+    .replace(/[^\p{L}\p{N}\s#]/gu, " ")
+    .toLowerCase();
+  const stop = new Set([
+    "من",
+    "في",
+    "على",
+    "الى",
+    "إلى",
+    "عن",
+    "مع",
+    "هذا",
+    "هذه",
+    "التي",
+    "الذي",
+    "كل",
+    "أو",
+    "او",
+    "ما",
+    "لا",
+    "the",
+    "and",
+    "for",
+    "with",
+    "you",
+    "your",
+  ]);
+  return new Set(
+    cleaned
+      .split(/\s+/)
+      .map((w) => w.replace(/^#/, ""))
+      .filter((w) => w.length >= 3 && !stop.has(w))
+      .slice(0, 120),
+  );
+}
+
+/** تشابه جاكارد بين منشور المستخدم الحالي ومنشور سابق (0..1). */
+function similarity(a: Set<string>, b: Set<string>): number {
+  if (!a.size || !b.size) return 0;
+  let shared = 0;
+  for (const word of a) if (b.has(word)) shared += 1;
+  return shared / (a.size + b.size - shared);
+}
+
+/** إشارة الجمهور الحيّة لفيسبوك: عدد المعجبين المتصلين في كل ساعة. */
+async function facebookAudienceHours(
+  admin: Admin,
+  workspaceId: string,
+  offsetMin: number,
+): Promise<{ hour: number; score: number }[] | null> {
+  const target = await metaTarget(admin, workspaceId, "facebook");
+  if (!target?.pageId || !target.pageToken) return null;
+  const payload = await graph(
+    `${GRAPH}/${target.pageId}/insights?metric=page_fans_online_per_day&period=day&access_token=${encodeURIComponent(target.pageToken)}`,
+  );
+  const data = (payload as { data?: { values?: { value?: unknown }[] }[] } | null)?.data;
+  if (!Array.isArray(data) || !data.length) return null;
+
+  const totals = new Map<number, number>();
+  for (const entry of data) {
+    for (const point of entry.values ?? []) {
+      const value = point.value;
+      if (!value || typeof value !== "object") continue;
+      for (const [rawHour, count] of Object.entries(value as Record<string, unknown>)) {
+        const utcHour = Number(rawHour);
+        if (!Number.isFinite(utcHour) || typeof count !== "number") continue;
+        const localHour = (((utcHour + Math.round(offsetMin / 60)) % 24) + 24) % 24;
+        totals.set(localHour, (totals.get(localHour) ?? 0) + count);
+      }
+    }
+  }
+  if (!totals.size) return null;
+  return [...totals].map(([hour, score]) => ({ hour, score }));
+}
+
 /** إشارة الجمهور الحيّة لإنستجرام: عدد المتابعين المتصلين في كل ساعة. */
 async function instagramAudienceHours(
   admin: Admin,
@@ -130,24 +208,32 @@ async function engagementOf(
   return score;
 }
 
-/** يحسب أفضل ثلاثة مواعيد حقيقية للمنصة المطلوبة. */
+/** يحسب أفضل ثلاثة مواعيد حقيقية للمنصة المطلوبة (ويراعي نص المنشور نفسه حين يتوفّر). */
 export async function computeBestTimes(
   admin: Admin,
   workspaceId: string,
   provider: string,
   offsetMin: number,
+  postText?: string,
 ): Promise<BestTimeResult> {
   const now = new Date();
+  const wanted = postText ? keywords(postText) : null;
 
-  // ١) جمهور إنستجرام الحيّ — أقوى إشارة حين تتوفّر.
-  if (provider === "instagram") {
-    const audience = await instagramAudienceHours(admin, workspaceId, offsetMin);
+  // ١) جمهورك الحيّ على المنصة — أقوى إشارة حين تتوفّر.
+  if (provider === "instagram" || provider === "facebook") {
+    const audience =
+      provider === "instagram"
+        ? await instagramAudienceHours(admin, workspaceId, offsetMin)
+        : await facebookAudienceHours(admin, workspaceId, offsetMin);
     if (audience?.length) {
       const top = audience.sort((a, b) => b.score - a.score).slice(0, 3);
       return {
         source: "audience",
         samples: audience.length,
-        note: "محسوبة من ساعات تواجد متابعيك فعلياً على إنستجرام.",
+        note:
+          provider === "instagram"
+            ? "محسوبة من ساعات تواجد متابعيك فعلياً على إنستجرام."
+            : "محسوبة من ساعات تواجد معجبي صفحتك فعلياً على فيسبوك.",
         slots: top.map((h) => {
           const at = nextAt(h.hour, null, offsetMin, now);
           return {
@@ -165,7 +251,7 @@ export async function computeBestTimes(
   const since = new Date(now.getTime() - 90 * 86_400_000).toISOString();
   const { data: published } = await admin
     .from("social_posts")
-    .select("id, provider, published_at, remote_ref, metrics")
+    .select("id, provider, published_at, remote_ref, metrics, body")
     .eq("workspace_id", workspaceId)
     .eq("provider", provider)
     .eq("status", "published")
@@ -182,14 +268,20 @@ export async function computeBestTimes(
     }
 
     const buckets = new Map<string, { hour: number; weekday: number; score: number; n: number }>();
+    let matched = 0;
     for (const post of rows) {
       const when = new Date(post.published_at as string);
       const { hour, weekday } = local(when, offsetMin);
       const engagement = token ? await engagementOf(admin, post, token) : 0;
+      // وزن المحتوى: منشور سابق شبيه بنص المستخدم الحالي يُحسب أثقل — لأن جمهور
+      // هذا النوع من المحتوى تحديداً هو من يهمّنا، لا كل الجمهور.
+      const sim = wanted ? similarity(wanted, keywords(post.body ?? "")) : 0;
+      if (sim >= 0.12) matched += 1;
+      const weight = 1 + sim * 2;
       const key = `${weekday}-${hour}`;
       const cur = buckets.get(key) ?? { hour, weekday, score: 0, n: 0 };
-      // ١ نقطة لمجرد النشر الناجح + التفاعل الحقيقي حين يتوفر.
-      cur.score += 1 + engagement;
+      // ١ نقطة لمجرد النشر الناجح + التفاعل الحقيقي حين يتوفر، مضروبة في وزن التشابه.
+      cur.score += (1 + engagement) * weight;
       cur.n += 1;
       buckets.set(key, cur);
     }
@@ -197,12 +289,15 @@ export async function computeBestTimes(
     const measured = [...buckets.values()].some((b) => b.score > b.n);
     const top = [...buckets.values()].sort((a, b) => b.score / b.n - a.score / a.n).slice(0, 3);
     if (top.length) {
+      const base = measured
+        ? `محسوبة من تفاعل ${rows.length} منشوراً حقيقياً من حسابك.`
+        : `محسوبة من مواعيد ${rows.length} منشوراً ناجحاً من حسابك (التفاعل لم يُتَح بعد).`;
       return {
         source: "history",
         samples: rows.length,
-        note: measured
-          ? `محسوبة من تفاعل ${rows.length} منشوراً حقيقياً من حسابك.`
-          : `محسوبة من مواعيد ${rows.length} منشوراً ناجحاً من حسابك (التفاعل لم يُتَح بعد).`,
+        note: matched
+          ? `${base} ورجّحنا ${matched.toLocaleString("ar-EG")} منشوراً قريباً من موضوع منشورك الحالي.`
+          : base,
         slots: top.map((b) => {
           const at = nextAt(b.hour, b.weekday, offsetMin, now);
           return {
