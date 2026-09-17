@@ -403,5 +403,5 @@ export async function runLearningCycle(client: Client, workspaceId: string) {
       rolledBack += 1;
     }
   }
-  return { created, evaluated, promoted, rolledBack };
+  return { created, selfLessons, evaluated, promoted, rolledBack };
 }
