@@ -1002,15 +1002,30 @@ export function PublishPanel({
                 const entries = calendarEntries.filter(
                   (entry) => !Number.isNaN(entry.at.getTime()) && dateKey(entry.at) === key,
                 );
+                const today = dateKey(new Date()) === key;
                 return (
                   <button
                     key={key}
                     type="button"
-                    className={`post-calendar-day ${selectedDay === key ? "is-selected" : ""}`}
+                    className={`post-calendar-day ${selectedDay === key ? "is-selected" : ""} ${
+                      today ? "is-today" : ""
+                    } ${entries.length ? "has-posts" : ""}`}
                     onClick={() => setSelectedDay((value) => (value === key ? null : key))}
+                    aria-label={`${day.toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" })} · ${entries.length} منشور`}
                   >
                     <b>{day.getDate().toLocaleString("ar-EG")}</b>
-                    {entries.length ? <span>{entries.length.toLocaleString("ar-EG")}</span> : null}
+                    {entries.length ? (
+                      <span className="post-calendar-day-thumbs">
+                        {entries.slice(0, 3).map((entry) =>
+                          entry.image ? (
+                            <img key={entry.id} src={entry.image} alt="" loading="lazy" />
+                          ) : (
+                            <i key={entry.id} className={`dot is-${entry.status}`} />
+                          ),
+                        )}
+                        {entries.length > 3 ? <em>+{entries.length - 3}</em> : null}
+                      </span>
+                    ) : null}
                   </button>
                 );
               })}
