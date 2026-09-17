@@ -80,7 +80,9 @@ const clip = (text: string, max: number) => (text.length > max ? `${text.slice(0
 export async function judgeAndImprove(input: JudgeInput): Promise<JudgeVerdict> {
   const original = input.output ?? "";
   const fallback: JudgeVerdict = { score: 0, issues: [], output: original, revised: false };
-  if (original.trim().length < 200) return fallback;
+  // المخرجات القصيرة (كابشن، تغريدة، رسالة باردة) تُراجَع أيضاً — هي الأكثر استخداماً.
+  if (original.trim().length < 60) return fallback;
+
 
   const threshold = input.threshold ?? 82;
   // فحص حتمي قبل حكم النموذج: بقايا فراغات، بتر، جداول ناقصة، حشو، ادعاءات، كلمات ممنوعة،
