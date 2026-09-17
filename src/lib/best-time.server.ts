@@ -251,7 +251,7 @@ export async function computeBestTimes(
   const since = new Date(now.getTime() - 90 * 86_400_000).toISOString();
   const { data: published } = await admin
     .from("social_posts")
-    .select("id, provider, published_at, remote_ref, metrics")
+    .select("id, provider, published_at, remote_ref, metrics, body")
     .eq("workspace_id", workspaceId)
     .eq("provider", provider)
     .eq("status", "published")
@@ -268,14 +268,20 @@ export async function computeBestTimes(
     }
 
     const buckets = new Map<string, { hour: number; weekday: number; score: number; n: number }>();
+    let matched = 0;
     for (const post of rows) {
       const when = new Date(post.published_at as string);
       const { hour, weekday } = local(when, offsetMin);
       const engagement = token ? await engagementOf(admin, post, token) : 0;
+      // وزن المحتوى: منشور سابق شبيه بنص المستخدم الحالي يُحسب أثقل — لأن جمهور
+      // هذا النوع من المحتوى تحديداً هو من يهمّنا، لا كل الجمهور.
+      const sim = wanted ? similarity(wanted, keywords(post.body ?? "")) : 0;
+      if (sim >= 0.12) matched += 1;
+      const weight = 1 + sim * 2;
       const key = `${weekday}-${hour}`;
       const cur = buckets.get(key) ?? { hour, weekday, score: 0, n: 0 };
-      // ١ نقطة لمجرد النشر الناجح + التفاعل الحقيقي حين يتوفر.
-      cur.score += 1 + engagement;
+      // ١ نقطة لمجرد النشر الناجح + التفاعل الحقيقي حين يتوفر، مضروبة في وزن التشابه.
+      cur.score += (1 + engagement) * weight;
       cur.n += 1;
       buckets.set(key, cur);
     }
@@ -283,12 +289,15 @@ export async function computeBestTimes(
     const measured = [...buckets.values()].some((b) => b.score > b.n);
     const top = [...buckets.values()].sort((a, b) => b.score / b.n - a.score / a.n).slice(0, 3);
     if (top.length) {
+      const base = measured
+        ? `محسوبة من تفاعل ${rows.length} منشوراً حقيقياً من حسابك.`
+        : `محسوبة من مواعيد ${rows.length} منشوراً ناجحاً من حسابك (التفاعل لم يُتَح بعد).`;
       return {
         source: "history",
         samples: rows.length,
-        note: measured
-          ? `محسوبة من تفاعل ${rows.length} منشوراً حقيقياً من حسابك.`
-          : `محسوبة من مواعيد ${rows.length} منشوراً ناجحاً من حسابك (التفاعل لم يُتَح بعد).`,
+        note: matched
+          ? `${base} ورجّحنا ${matched.toLocaleString("ar-EG")} منشوراً قريباً من موضوع منشورك الحالي.`
+          : base,
         slots: top.map((b) => {
           const at = nextAt(b.hour, b.weekday, offsetMin, now);
           return {
