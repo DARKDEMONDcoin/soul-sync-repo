@@ -1037,24 +1037,37 @@ export function PublishPanel({
                     (entry) =>
                       !Number.isNaN(entry.at.getTime()) && dateKey(entry.at) === selectedDay,
                   )
+                  .sort((a, b) => a.at.getTime() - b.at.getTime())
                   .map((entry) => (
                     <div key={entry.id} className="post-inline-calendar-item">
-                      <AppIcon name={entry.provider} className="size-4" />
-                      <span>
-                        {entry.at.toLocaleTimeString("ar-EG", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                      <small>
-                        {entry.status === "published"
-                          ? "منشور"
-                          : entry.status === "failed"
-                            ? "فشل"
-                            : entry.status === "draft"
-                              ? "قيد الإعداد"
-                              : "مجدول"}
-                      </small>
+                      {entry.image ? (
+                        <img src={entry.image} alt="" loading="lazy" />
+                      ) : (
+                        <span className="post-inline-calendar-noimg">
+                          <AppIcon name={entry.provider} className="size-4" />
+                        </span>
+                      )}
+                      <div className="post-inline-calendar-body">
+                        <div className="post-inline-calendar-meta">
+                          <AppIcon name={entry.provider} className="size-3.5" />
+                          <b>
+                            {entry.at.toLocaleTimeString("ar-EG", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </b>
+                          <small className={`status is-${entry.status}`}>
+                            {entry.status === "published"
+                              ? "منشور"
+                              : entry.status === "failed"
+                                ? "فشل"
+                                : entry.status === "draft"
+                                  ? "قيد الإعداد"
+                                  : "مجدول"}
+                          </small>
+                        </div>
+                        <p>{entry.body ? entry.body.slice(0, 120) : "بدون نص"}</p>
+                      </div>
                     </div>
                   ))}
               </div>
