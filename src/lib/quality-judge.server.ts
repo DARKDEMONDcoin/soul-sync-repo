@@ -176,14 +176,26 @@ export async function judgeAndImprove(input: JudgeInput): Promise<JudgeVerdict> 
       return { score: verdict.score, issues: verdict.issues, output: original, revised: false };
     }
 
+    // لا نعتمد نسخة أسوأ من الأصل: نعيد فحصها حتمياً ونقارن.
+    const after = auditOutput({
+      text: fixed,
+      employeeId: input.employeeId ?? "",
+      request: input.request,
+      bannedWords: input.bannedWords,
+    });
+    if (after.penalty > audit.penalty) {
+      return { score: verdict.score, issues: verdict.issues, output: original, revised: false };
+    }
+
     // النسخة المُصلَحة عالجت ملاحظات محددة بلا حذف — نعتمدها بدرجة عتبة التسليم
     // بدل استهلاك نداء ثالث في إعادة الحكم (كان يضيف نصف دقيقة لكل رد).
     return {
-      score: Math.max(verdict.score, threshold),
-      issues: verdict.issues,
+      score: Math.max(verdict.score, threshold - after.penalty),
+      issues: after.issues.map((i) => i.hint),
       output: fixed,
       revised: true,
     };
+
   } catch {
     return { score: verdict.score, issues: verdict.issues, output: original, revised: false };
   }
