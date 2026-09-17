@@ -1108,8 +1108,13 @@ export function PublishPanel({
         </div>
 
         {bestTimes ? (
-          <p className="mt-2 text-[11px] text-muted-foreground">{bestTimes.note}</p>
+          <p
+            className={`mt-2 text-[11px] ${bestTimes.source === "baseline" ? "font-semibold text-amber-600" : "text-muted-foreground"}`}
+          >
+            {bestTimes.note}
+          </p>
         ) : null}
+
       </div>
 
       {/* الإجراءات */}
