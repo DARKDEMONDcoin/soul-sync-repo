@@ -2,8 +2,9 @@
  * مقياس جودة المنشور قبل النشر (يعمل على المتصفح والخادم).
  *
  * الهدف: لا يخرج أي منشور من «سهل» بجودة أقل من معايير أفضل أدوات السوشيال العالمية.
- * كل بند هنا قاعدة قابلة للقياس (لا رأي): الهوك، الطول المناسب للمنصة، دعوة الفعل،
- * الهاشتاقات، القابلية للقراءة، الرموز التعبيرية، الكلمات الممنوعة، والحشو التسويقي.
+ * كل بند هنا قاعدة قابلة للقياس (لا رأي): الهوك، الوعد، الثقة، الطول المناسب للمنصة،
+ * دعوة الفعل، الهاشتاقات، القابلية للقراءة، الرموز التعبيرية، الكلمات الممنوعة،
+ * الحشو التسويقي، وبصمة النص الآلي.
  */
 
 import { PROVIDER_LABEL } from "./platforms";
@@ -30,6 +31,8 @@ export type QualityReport = {
   emojis: number;
   checks: QualityCheck[];
   blockers: QualityCheck[];
+  strengths: QualityCheck[];
+  quickFixes: QualityCheck[];
 };
 
 /** حدود ومعايير كل منصة — مبنية على أطوال المنصات الرسمية وأفضل الممارسات المنشورة. */
@@ -111,6 +114,23 @@ const CTA =
 const HOOK_QUESTION = /[؟?]/u;
 const HOOK_NUMBER = /(\d|[٠-٩]|نصف|ضعف|أول|آخر)/u;
 const HOOK_DIRECT = /(أنت|إنت|لو\s|إذا\s|تخيل|تخيّل|توقف|بلاش|لا\s+ت|كفاية|سر\s|٣|3\s+أسباب|هل\s)/u;
+const WEAK_OPENING = /^(مرحباً|مرحبا|أهلاً|اهلا|يسرنا|يسعدنا|نقدّم لكم|نقدم لكم|هل تبحث عن|في عالم اليوم|في عصر)/iu;
+
+/** قيمة واضحة للقارئ: فائدة، حل مشكلة، توفير، تعلّم، أو نتيجة ملموسة. */
+const VALUE_PROMISE =
+  /(كيف|لماذا|طريقة|خطوات|نصائح|دليل|تعلّم|تعلم|اكتشف|اعرف|وفّر|وفر|اختصر|خفّض|خفض|ارفع|حسّن|حسن|احصل|حل\s|مشكلة|نتيجة|عرض|خصم|تخفيض|أسرع|أسهل|أقل|save|learn|guide|tips|how\s+to|offer|discount)/iu;
+
+/** تحديد واضح لمن نخاطبه — يرفع ملاءمة المنشور بدلاً من خطاب عام. */
+const AUDIENCE_SIGNAL =
+  /(أصحاب|لأصحاب|لـ|للـ|للشركات|للمطاعم|للمتاجر|للعيادات|للعقارات|للمديرين|للفريق|للعملاء|لو\s+(?:أنت|كنت)|إذا\s+(?:أنت|كنت)|لكل\s+من|for\s+(?:founders|teams|restaurants|clinics|stores|marketers))/iu;
+
+/** إثبات أو سبب للثقة: نتيجة، تجربة، ضمان، رقم، مقارنة، أو دليل اجتماعي. */
+const TRUST_SIGNAL =
+  /(عميل|عملاء|تقييم|تجربة|نتيجة|قبل|بعد|ضمان|مرخّص|مرخص|معتمد|سنوات|حالة|دراسة|مراجعة|٪|%|\d|[٠-٩]|case\s+study|testimonial|review|proof)/iu;
+
+/** إشارات تجعل المنشور قابلاً للحفظ/المشاركة لا مجرد إعلان مباشر. */
+const SAVEABLE_SIGNAL =
+  /(احفظ|شارك|أرسل|ارسل|قائمة|checklist|تذكّر|تذكر|قاعدة|خطوات|نصائح|أخطاء|أسرار|أسباب|مقارنة|قبل\s+ما|قبل\s+أن|save|share|checklist|mistakes|reasons)/iu;
 
 /** حشو تسويقي مستهلك يخفض المصداقية — وأشهر بصمات النص المولّد آلياً. */
 const FLUFF = [
@@ -140,6 +160,10 @@ const FLUFF = [
   "منتجاتنا الرائعة",
   "جودة عالية بأسعار تنافسية",
   "في المكان الصحيح",
+  "غيّر قواعد اللعبة",
+  "game changer",
+  "مصمم خصيصاً لتلبية احتياجاتك",
+  "نحن هنا لنساعدك",
 ];
 
 /** تفصيلة ملموسة تجعل المنشور مصدقاً: رقم، سعر، وقت، مكان، أو مدة. */
@@ -156,6 +180,8 @@ const ARTIFACTS = [
   /^\s*#{1,6}\s+\S/m,
   /\*\*[^*]+\*\*/,
   /^\s*\|.+\|\s*$/m,
+  /^\s*(?:عنوان المنشور|نص المنشور|الكابشن|caption|post)\s*[:：]/im,
+  /(إليك|هذا هو|يمكنك نشر|جاهز للنشر|آمل أن يعجبك)/iu,
 ];
 
 const EMOJI = /\p{Extended_Pictographic}/gu;
@@ -173,6 +199,34 @@ function bodyWithoutTags(text: string): string {
     .replace(/#[\p{L}\p{N}_]+/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function uniqueWordRatio(core: string): number {
+  const words = core
+    .toLowerCase()
+    .split(/\s+/)
+    .map((w) => w.replace(/^[^\p{L}\p{N}#]+|[^\p{L}\p{N}#]+$/gu, ""))
+    .filter((w) => w.length > 2);
+  if (words.length < 8) return 1;
+  return new Set(words).size / words.length;
+}
+
+function firstLineScore(firstLine: string): QualitySeverity {
+  if (!firstLine) return "fail";
+  if (firstLine.length > 110 || WEAK_OPENING.test(firstLine)) return "warn";
+  if (HOOK_QUESTION.test(firstLine) || HOOK_NUMBER.test(firstLine) || HOOK_DIRECT.test(firstLine))
+    return "pass";
+  return "warn";
+}
+
+function hashtagClusteredAtEnd(clean: string, hashtags: string[]): boolean {
+  if (hashtags.length < 2) return true;
+  const lines = clean
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const lastTwo = lines.slice(-2).join(" ");
+  return hashtags.every((tag) => lastTwo.includes(tag));
 }
 
 type Input = {
@@ -267,18 +321,43 @@ export function scorePost({
 
   // ٥) الهوك في أول سطر.
   const hookLen = firstLine.length;
-  const strongHook =
-    hookLen > 0 &&
-    hookLen <= 90 &&
-    (HOOK_QUESTION.test(firstLine) || HOOK_NUMBER.test(firstLine) || HOOK_DIRECT.test(firstLine));
+  const hookSeverity = firstLineScore(firstLine);
   add(
     "hook",
     "هوك قوي في أول سطر",
     14,
-    strongHook ? "pass" : hookLen ? "warn" : "fail",
-    strongHook
+    hookSeverity,
+    hookSeverity === "pass"
       ? "أول سطر يوقف التمرير."
-      : "اجعل أول سطر قصيراً (أقل من ٩٠ حرفاً) وفيه سؤال أو رقم أو خطاب مباشر للقارئ.",
+      : hookLen > 110
+        ? "اختصر أول سطر إلى أقل من ٩٠ حرفاً واجعله سؤالاً أو رقماً أو وعداً مباشراً."
+        : WEAK_OPENING.test(firstLine)
+          ? "استبدل الافتتاحية العامة بسؤال أو رقم أو نتيجة تهم القارئ فوراً."
+          : "اجعل أول سطر قصيراً وفيه سؤال أو رقم أو خطاب مباشر للقارئ.",
+  );
+
+  // ٥ب) وعد قيمة واضح — المنشور العالمي يجيب: ماذا سيكسب القارئ؟
+  const value = VALUE_PROMISE.test(core);
+  add(
+    "value",
+    "وعد قيمة واضح للقارئ",
+    12,
+    value ? "pass" : "warn",
+    value
+      ? "القارئ يعرف المكسب من قراءة المنشور."
+      : "أضف فائدة واضحة: توفير وقت/مال، حل مشكلة، نصيحة، خطوة، أو نتيجة محددة.",
+  );
+
+  // ٥ج) الجمهور المستهدف — يمنع المنشور من أن يبدو عاماً لكل الناس.
+  const audience = AUDIENCE_SIGNAL.test(core);
+  add(
+    "audience",
+    "مخاطبة جمهور محدد",
+    8,
+    audience ? "pass" : "warn",
+    audience
+      ? "المنشور يوضح لمن يتحدث."
+      : "اذكر الجمهور صراحة: أصحاب مطاعم، متاجر، عيادات، مدراء، أو نوع العميل المقصود.",
   );
 
   // ٦) دعوة فعل واضحة.
@@ -291,6 +370,18 @@ export function scorePost({
     hasCta
       ? "يوجد إجراء مطلوب من القارئ."
       : "أضف سطر دعوة فعل: احجز، اطلب، علّق، أو الرابط في البايو.",
+  );
+
+  // ٦ب) قابلية الحفظ أو المشاركة — من أقوى إشارات جودة المحتوى العضوي.
+  const saveable = SAVEABLE_SIGNAL.test(core);
+  add(
+    "saveable",
+    "قابل للحفظ أو المشاركة",
+    7,
+    saveable ? "pass" : words < 18 ? "warn" : "pass",
+    saveable
+      ? "فيه سبب واضح للحفظ أو المشاركة."
+      : "حوّله إلى نقطة مفيدة قابلة للحفظ: قائمة، خطأ شائع، خطوة، أو مقارنة قصيرة.",
   );
 
   // ٧) الهاشتاقات حسب المنصة.
@@ -306,6 +397,17 @@ export function scorePost({
       : hashtags.length < htLo
         ? `أضف هاشتاقات (${htLo}–${htHi}) مرتبطة بالمجال والسوق.`
         : `قلّل الهاشتاقات إلى ${htHi} كحد أقصى على هذه المنصة.`,
+  );
+
+  const tagsAtEnd = hashtagClusteredAtEnd(clean, hashtags);
+  add(
+    "hashtag-placement",
+    "الهاشتاقات في آخر المنشور",
+    4,
+    tagsAtEnd ? "pass" : "warn",
+    tagsAtEnd
+      ? "الهاشتاقات لا تقطع قراءة النص."
+      : "انقل الهاشتاقات إلى آخر سطر أو آخر سطرين حتى يبقى النص مقروءاً.",
   );
 
   // ٨) الرموز التعبيرية.
@@ -331,6 +433,18 @@ export function scorePost({
       : "اكسر النص إلى فقرات قصيرة (سطر أو سطران) ليسهل قراءته على الجوال.",
   );
 
+  const paragraphCount = lines.length;
+  const scannable = chars < 180 || (paragraphCount >= 2 && paragraphCount <= 8);
+  add(
+    "scan",
+    "بنية سريعة المسح",
+    7,
+    scannable ? "pass" : "warn",
+    scannable
+      ? "التقسيم مناسب للقراءة السريعة."
+      : "قسّم المنشور إلى ٢–٨ فقرات قصيرة؛ لا تتركه كتلة واحدة طويلة.",
+  );
+
   // ١٠) الحشو التسويقي وبصمة النص الآلي — بندان يفصلان المنشور الاحترافي عن القالب.
   const fluff = FLUFF.filter((f) => clean.includes(f));
   add(
@@ -351,6 +465,17 @@ export function scorePost({
     concrete
       ? "يوجد تفصيل محدد."
       : "أضف تفصيلة محددة: رقم، سعر، مدة، أو اسم مكان — العموميات لا تُقنع.",
+  );
+
+  const trust = TRUST_SIGNAL.test(core);
+  add(
+    "trust",
+    "سبب ثقة أو إثبات",
+    9,
+    trust ? "pass" : "warn",
+    trust
+      ? "يوجد عنصر يرفع المصداقية."
+      : "أضف سبب ثقة: رقم، تجربة عميل، ضمان، مقارنة قبل/بعد، أو نتيجة قابلة للتحقق.",
   );
 
   // ١١) الوسائط عندما تشترطها المنصة.
@@ -380,12 +505,28 @@ export function scorePost({
     repeated ? "توجد جملة مكررة — احذف النسخة الزائدة." : "لا تكرار.",
   );
 
+  const richness = uniqueWordRatio(core);
+  add(
+    "lexical-richness",
+    "تنوع لغوي بلا تكرار كلمات",
+    6,
+    richness >= 0.58 ? "pass" : richness >= 0.45 ? "warn" : "fail",
+    richness >= 0.58
+      ? "الكلمات متنوعة وطبيعية."
+      : "قلّل تكرار نفس الكلمات واستبدل العموميات بتفاصيل محددة.",
+  );
+
   const total = checks.reduce((s, c) => s + c.weight, 0);
   const earned = checks.reduce(
     (s, c) => s + (c.severity === "pass" ? c.weight : c.severity === "warn" ? c.weight * 0.5 : 0),
     0,
   );
   const score = Math.round((earned / total) * 100);
+  const blockers = checks.filter((c) => c.severity === "fail");
+  const quickFixes = checks
+    .filter((c) => c.severity !== "pass")
+    .sort((a, b) => b.weight - a.weight)
+    .slice(0, 4);
 
   return {
     score,
@@ -397,7 +538,9 @@ export function scorePost({
     hashtags,
     emojis,
     checks,
-    blockers: checks.filter((c) => c.severity === "fail"),
+    blockers,
+    strengths: checks.filter((c) => c.severity === "pass").sort((a, b) => b.weight - a.weight),
+    quickFixes,
   };
 }
 
