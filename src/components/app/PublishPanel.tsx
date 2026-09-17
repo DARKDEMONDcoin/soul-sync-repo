@@ -675,7 +675,7 @@ export function PublishPanel({
           {media.length ? (
             <button
               type="button"
-              onClick={() => setMedia([])}
+              onClick={clearMedia}
               className="inline-flex items-center gap-1 text-[11px] font-bold text-muted-foreground hover:text-coral"
             >
               <Trash2 className="size-3.5" /> امسح الكل
