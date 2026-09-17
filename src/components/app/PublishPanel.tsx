@@ -549,7 +549,7 @@ export function PublishPanel({
   }
 
   return (
-    <div className="mt-4 rounded-2xl border border-border bg-secondary/30 p-4">
+    <div className="post-publisher-panel mt-4 rounded-2xl border border-border bg-secondary/30 p-4">
       <div className="mb-3 flex items-center justify-between">
         <span className="text-xs font-bold text-muted-foreground">خيارات النشر</span>
         <button
@@ -635,7 +635,7 @@ export function PublishPanel({
           />
         ) : (
           <p
-            className="mt-2 line-clamp-4 whitespace-pre-line rounded-xl bg-card/60 p-3 text-sm leading-relaxed text-ink-soft"
+            className="post-publisher-copy mt-2 line-clamp-4 whitespace-pre-line rounded-xl bg-card/60 p-3 text-sm leading-relaxed text-ink-soft"
             dir="auto"
           >
             {text}
@@ -1084,8 +1084,8 @@ export function PublishPanel({
             const setPart = (next: string) =>
               setSlots((all) => all.map((v, j) => (j === i ? next : v)));
             return (
-              <div key={i} className="rounded-2xl border border-border bg-card/60 p-3">
-                <div className="flex flex-wrap items-center gap-2">
+              <div key={i} className="post-schedule-slot rounded-2xl border border-border bg-card/60 p-3">
+                <div className="post-schedule-row flex flex-wrap items-center gap-2">
                   <input
                     type="date"
                     value={datePart}
@@ -1211,7 +1211,7 @@ export function PublishPanel({
       </div>
 
       {/* الإجراءات */}
-      <div className="mt-4 flex flex-wrap items-center gap-2">
+      <div className="post-publish-actions mt-4 flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={() => void run("now")}
