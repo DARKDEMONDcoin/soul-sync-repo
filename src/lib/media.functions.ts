@@ -55,3 +55,34 @@ export const generateMedia = createServerFn({ method: "POST" })
 
     return { prompt, urls: urls.filter((u): u is string => Boolean(u)) };
   });
+
+const deleteInput = z.object({
+  workspaceId: z.string().uuid(),
+  url: z.string().min(8).max(4000),
+});
+
+/**
+ * حذف أصل من مخزن مساحة العمل عند إزالته من المنشور، حتى لا تتراكم ملفات يتيمة.
+ * لا يحذف إلا ملفات داخل مجلد مساحة العمل نفسها (تحقّق المسار إلزامي).
+ */
+export const deleteMedia = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => deleteInput.parse(data))
+  .handler(async ({ data, context }) => {
+    const { data: workspace } = await context.supabase
+      .from("workspaces")
+      .select("id")
+      .eq("id", data.workspaceId)
+      .maybeSingle();
+    if (!workspace) return { removed: false as const, reason: "workspace" };
+
+    // الشكل المتوقّع: .../storage/v1/object/(public|sign)/nour-media/<workspaceId>/<path>
+    const match = data.url.match(/\/storage\/v1\/object\/(?:public|sign)\/nour-media\/([^?]+)/);
+    const path = match?.[1] ? decodeURIComponent(match[1]) : null;
+    if (!path || !path.startsWith(`${data.workspaceId}/`)) {
+      return { removed: false as const, reason: "external" };
+    }
+    const { error } = await context.supabase.storage.from("nour-media").remove([path]);
+    if (error) return { removed: false as const, reason: error.message };
+    return { removed: true as const };
+  });
