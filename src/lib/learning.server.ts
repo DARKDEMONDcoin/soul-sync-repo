@@ -129,6 +129,97 @@ function lessonFromFeedback(row: {
   return null;
 }
 
+/**
+ * تحسين ذاتي بلا تدخل بشري: يقرأ ملاحظات الجودة التي تكرّرت على مخرجات الموظف
+ * نفسه (من الفاحص الحتمي وحَكَم الجودة)، ويحوّل كل خلل متكرر إلى درس دائم
+ * يُحقن في تعليماته مسبقاً حتى لا يقع فيه مرة أخرى.
+ *
+ * الفرق عن دروس المالك: هذه لا تنتظر أن يعدّل المالك أو يرفض — الموظف يراجع
+ * أخطاءه بنفسه. تبدأ كتجربة صامتة وتُقاس بنفس دورة القياس قبل التفعيل.
+ */
+export async function buildSelfReviewLessons(
+  client: Client,
+  workspaceId: string,
+  employeeId: string,
+  minimumEvidence: number,
+) {
+  const { data: runs } = await client
+    .from("employee_runs")
+    .select("quality_issues, quality_score, created_at")
+    .eq("workspace_id", workspaceId)
+    .eq("employee_id", employeeId)
+    .order("created_at", { ascending: false })
+    .limit(150);
+
+  const groups = new Map<string, { issue: string; count: number }>();
+  for (const run of runs ?? []) {
+    const issues = Array.isArray(run.quality_issues) ? run.quality_issues : [];
+    const seen = new Set<string>();
+    for (const raw of issues) {
+      if (typeof raw !== "string") continue;
+      const issue = clean(raw, 300);
+      if (issue.length < 12) continue;
+      const key = issue
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}]+/gu, " ")
+        .trim()
+        .split(" ")
+        .slice(0, 7)
+        .join(" ");
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      const current = groups.get(key) ?? { issue, count: 0 };
+      current.count += 1;
+      groups.set(key, current);
+    }
+  }
+
+  let created = 0;
+  for (const group of groups.values()) {
+    if (group.count < minimumEvidence) continue;
+    const instruction = clean(
+      `تكرّر هذا الخلل في مخرجاتك السابقة (${group.count.toLocaleString("ar-EG")} مرات): «${group.issue}». طبّق إصلاحه من أول مسودة، وتحقّق منه قبل التسليم.`,
+      400,
+    );
+    const { data: exists } = await client
+      .from("employee_lessons")
+      .select("id, evidence_count")
+      .eq("workspace_id", workspaceId)
+      .eq("employee_id", employeeId)
+      .eq("source_kind", "self_review")
+      .ilike("instruction", `%${group.issue.slice(0, 40)}%`)
+      .neq("status", "expired")
+      .maybeSingle();
+    if (exists) {
+      await client
+        .from("employee_lessons")
+        .update({ evidence_count: group.count, instruction })
+        .eq("id", exists.id);
+      continue;
+    }
+    const { data: lesson } = await client
+      .from("employee_lessons")
+      .insert({
+        workspace_id: workspaceId,
+        employee_id: employeeId,
+        title: `مراجعة ذاتية: خلل متكرر في ${group.count.toLocaleString("ar-EG")} مخرجات`,
+        instruction,
+        source_kind: "self_review",
+        status: "approved",
+        risk_level: HIGH_RISK.test(instruction) ? "high" : "low",
+        confidence: Math.min(0.9, 0.5 + group.count * 0.07),
+        evidence_count: group.count,
+        evidence: [{ issue: group.issue, count: group.count }] as unknown as Json,
+        activated_at: null,
+        expires_at: new Date(Date.now() + 120 * 86_400_000).toISOString(),
+      })
+      .select("id")
+      .single();
+    if (lesson) created += 1;
+  }
+  return { created };
+}
+
 export async function buildLearningCandidates(
   client: Client,
   workspaceId: string,
@@ -228,10 +319,25 @@ export async function runLearningCycle(client: Client, workspaceId: string) {
     .order("created_at", { ascending: false })
     .limit(1000);
   const employees = [...new Set((employeeRows ?? []).map((row) => row.employee_id))];
+  const minimumEvidenceSetting = Math.max(3, settings?.minimum_evidence ?? 3);
   let created = 0;
+  let selfLessons = 0;
   for (const employeeId of employees) {
     const result = await buildLearningCandidates(client, workspaceId, employeeId);
     created += result.created;
+    // تحسين ذاتي: الموظف يتعلّم من أخطائه المتكررة بلا انتظار ملاحظة من المالك.
+    try {
+      const self = await buildSelfReviewLessons(
+        client,
+        workspaceId,
+        employeeId,
+        minimumEvidenceSetting,
+      );
+      created += self.created;
+      selfLessons += self.created;
+    } catch (error) {
+      console.warn("[learning] self review skipped:", (error as Error).message);
+    }
   }
 
   const { data: lessons } = await client
@@ -297,5 +403,5 @@ export async function runLearningCycle(client: Client, workspaceId: string) {
       rolledBack += 1;
     }
   }
-  return { created, evaluated, promoted, rolledBack };
+  return { created, selfLessons, evaluated, promoted, rolledBack };
 }
