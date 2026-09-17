@@ -44266,9 +44266,48 @@ html {
   color: var(--background);
   box-shadow: var(--shadow-card);
 }
+
+/* ===== بطاقة النشر داخل المحادثة ===== */
+.post-publisher-panel {
+  box-shadow: var(--shadow-card);
+}
+.post-publisher-copy {
+  border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--background) 70%, transparent);
+}
+.post-schedule-slot {
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--background) 65%, transparent);
+}
+.post-schedule-row input,
+.post-schedule-row select {
+  min-height: 2.5rem;
+}
+.post-publish-actions > button {
+  min-height: 2.75rem;
+}
 @media (max-width: 480px) {
   .post-media-thumb-wrap {
     flex-basis: 3rem;
+  }
+  .post-publisher-panel {
+    margin-inline: -0.35rem;
+    padding: 0.85rem;
+  }
+  .post-schedule-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .post-schedule-row > input[type="date"],
+  .post-schedule-row > span,
+  .post-schedule-row > button:nth-last-child(1) {
+    width: 100%;
+  }
+  .post-publish-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  .post-publish-actions > button {
+    width: 100%;
   }
 }
 
