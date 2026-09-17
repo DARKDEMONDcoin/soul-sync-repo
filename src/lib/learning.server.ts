@@ -319,10 +319,25 @@ export async function runLearningCycle(client: Client, workspaceId: string) {
     .order("created_at", { ascending: false })
     .limit(1000);
   const employees = [...new Set((employeeRows ?? []).map((row) => row.employee_id))];
+  const minimumEvidenceSetting = Math.max(3, settings?.minimum_evidence ?? 3);
   let created = 0;
+  let selfLessons = 0;
   for (const employeeId of employees) {
     const result = await buildLearningCandidates(client, workspaceId, employeeId);
     created += result.created;
+    // تحسين ذاتي: الموظف يتعلّم من أخطائه المتكررة بلا انتظار ملاحظة من المالك.
+    try {
+      const self = await buildSelfReviewLessons(
+        client,
+        workspaceId,
+        employeeId,
+        minimumEvidenceSetting,
+      );
+      created += self.created;
+      selfLessons += self.created;
+    } catch (error) {
+      console.warn("[learning] self review skipped:", (error as Error).message);
+    }
   }
 
   const { data: lessons } = await client
