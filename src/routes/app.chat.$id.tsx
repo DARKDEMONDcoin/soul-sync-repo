@@ -1164,7 +1164,10 @@ function ChatView({
                     className={cn("animate-bubble-in", isUser ? "ms-0 me-auto" : "ms-auto me-0")}
                   >
                     <div
-                      className={cn("group flex gap-3", isUser ? "justify-start" : "justify-end")}
+                      className={cn(
+                        "chat-message-row group flex min-w-0 gap-3",
+                        isUser ? "justify-start" : "justify-end",
+                      )}
                     >
                       {!isUser ? (
                         <span className="relative order-2 mt-1 block size-9 shrink-0 overflow-hidden rounded-xl shadow-sm">
@@ -1173,7 +1176,7 @@ function ChatView({
                       ) : null}
                       <MessageContent
                         className={cn(
-                          "min-w-0 max-w-[min(46rem,82%)] px-4 py-3 text-sm leading-7",
+                          "chat-message-content min-w-0 max-w-[min(46rem,82%)] px-4 py-3 text-sm leading-7",
                           isUser
                             ? "bubble-user rounded-xl rounded-ss-sm text-primary-foreground whitespace-pre-wrap shadow-card"
                             : "order-1 bg-transparent",

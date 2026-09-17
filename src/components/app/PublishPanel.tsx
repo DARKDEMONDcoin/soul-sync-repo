@@ -570,6 +570,77 @@ export function PublishPanel({
           }}
         />
       </div>
+      {/* أدوات الوسائط تظهر مباشرةً بعد المعرض لتبقى مرتبطة بصرياً بما اختاره المستخدم. */}
+      <div className="post-media-tools mt-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-xs font-bold text-muted-foreground">
+            الصور والفيديو {media.length ? `(${media.length.toLocaleString("en-US")}/10)` : ""}
+          </span>
+          {media.length ? (
+            <button
+              type="button"
+              onClick={() => setMedia([])}
+              className="inline-flex items-center gap-1 text-[11px] font-bold text-muted-foreground hover:text-coral"
+            >
+              <Trash2 className="size-3.5" /> امسح الكل
+            </button>
+          ) : null}
+        </div>
+
+        <div className="post-media-tool-grid mt-3 flex flex-wrap gap-2">
+          <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading || media.length >= 10} className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-bold hover:bg-secondary disabled:opacity-60">
+            {uploading ? <Loader2 className="size-3.5 animate-spin" /> : <ImagePlus className="size-3.5" />}
+            ارفع صوراً/فيديو
+          </button>
+          <button type="button" onClick={() => void runGenerate("auto")} disabled={!!aiBusy || media.length >= 10} className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-bold hover:bg-secondary disabled:opacity-60">
+            {aiBusy === "auto" ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
+            ولّد صورة من نص المنشور
+          </button>
+          <button type="button" onClick={() => setAiOpen((v) => !v)} aria-expanded={aiOpen} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${aiOpen ? "border-foreground bg-foreground text-background" : "border-border hover:bg-secondary"}`}>
+            <Wand2 className="size-3.5" /> ولّد صورة بوصفي
+          </button>
+          {generated && !media.some((m) => m.url === generated) ? (
+            <button type="button" onClick={() => addMedia([{ url: generated, kind: "image", label: "الصورة المولّدة" }])} className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-bold hover:bg-secondary">
+              <Sparkles className="size-3.5" /> أعد الصورة المولّدة
+            </button>
+          ) : null}
+          <input ref={fileRef} type="file" multiple accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime" className="hidden" onChange={(e) => void onFiles(e.target.files)} />
+          <button type="button" onClick={() => setReelOpen((v) => !v)} aria-expanded={reelOpen} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${reelOpen ? "border-foreground bg-foreground text-background" : "border-border hover:bg-secondary"}`}>
+            <Film className="size-3.5" /> استوديو الريلز من صورك
+          </button>
+          <button type="button" onClick={() => setVideoOpen((v) => !v)} aria-expanded={videoOpen} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${videoOpen ? "border-foreground bg-foreground text-background" : "border-border hover:bg-secondary"}`}>
+            <Clapperboard className="size-3.5" /> فيديو بالذكاء الاصطناعي
+          </button>
+        </div>
+
+        {videoOpen ? (
+          <div className="mt-3 rounded-2xl border border-dashed border-border bg-card/70 p-3">
+            <p className="text-[11px] font-bold text-muted-foreground">مولّد الفيديو والريلز بالذكاء الاصطناعي — الواجهة جاهزة، وسنربط المزوّد قريباً.</p>
+            <textarea value={videoPrompt} onChange={(e) => setVideoPrompt(e.target.value)} rows={2} dir="auto" placeholder="صف الفيديو: مثلاً «لقطة قريبة لفنجان قهوة مع بخار ونص ترويجي»" className="mt-2 w-full resize-none rounded-xl border border-border bg-background p-2.5 text-sm outline-none focus:ring-2 focus:ring-foreground/20" />
+            <div className="post-media-settings mt-2 flex flex-wrap items-center gap-2">
+              <label className="inline-flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground">المدة<select value={videoSeconds} onChange={(e) => setVideoSeconds(Number(e.target.value))} className="rounded-full border border-border bg-card px-2.5 py-1.5 text-xs font-bold text-foreground">{[5, 8, 10, 15].map((n) => <option key={n} value={n}>{n} ثانية</option>)}</select></label>
+              <label className="inline-flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground">المقاس<select value={videoAspect} onChange={(e) => setVideoAspect(e.target.value as typeof videoAspect)} className="rounded-full border border-border bg-card px-2.5 py-1.5 text-xs font-bold text-foreground"><option value="story">ريلز / ستوري (9:16)</option><option value="square">مربع (1:1)</option><option value="landscape">عرضي (16:9)</option></select></label>
+              <button type="button" disabled title="سيُربط مزوّد توليد الفيديو قريباً" className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-4 py-1.5 text-xs font-bold text-background opacity-60"><Clapperboard className="size-3.5" /> ولّد الفيديو · قريباً</button>
+            </div>
+          </div>
+        ) : null}
+
+        {aiOpen ? (
+          <div className="mt-3 rounded-2xl border border-border bg-card/70 p-3">
+            <textarea value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} rows={2} dir="auto" placeholder="صف الصورة التي تريدها: مثلاً «طبق كبسة بلحم على طاولة خشبية بإضاءة دافئة»" className="w-full resize-none rounded-xl border border-border bg-background p-2.5 text-sm outline-none focus:ring-2 focus:ring-foreground/20" />
+            <div className="post-media-settings mt-2 flex flex-wrap items-center gap-2">
+              <label className="inline-flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground">عدد الصور<select value={aiCount} onChange={(e) => setAiCount(Number(e.target.value))} className="rounded-full border border-border bg-card px-2.5 py-1.5 text-xs font-bold text-foreground">{[1, 2, 3, 4].map((n) => <option key={n} value={n}>{n}</option>)}</select></label>
+              <label className="inline-flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground">المقاس<select value={aiAspect} onChange={(e) => setAiAspect(e.target.value as typeof aiAspect)} className="rounded-full border border-border bg-card px-2.5 py-1.5 text-xs font-bold text-foreground"><option value="square">مربع (منشور)</option><option value="portrait">طولي</option><option value="landscape">عرضي</option><option value="story">ستوري / ريلز</option></select></label>
+              <button type="button" onClick={() => void runGenerate("manual")} disabled={!!aiBusy || !aiPrompt.trim()} className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-4 py-1.5 text-xs font-bold text-background disabled:opacity-60">{aiBusy === "manual" ? <Loader2 className="size-3.5 animate-spin" /> : <Wand2 className="size-3.5" />} ولّد الآن</button>
+            </div>
+          </div>
+        ) : null}
+
+        {media.some((m) => m.kind === "video") ? <p className="mt-2 inline-flex items-center gap-1 text-[11px] text-muted-foreground"><Film className="size-3.5" /> الفيديو يُنشر على فيسبوك وإنستجرام (Reels عمودي حتى ٩٠ ثانية).</p> : null}
+        {media.length > 1 ? <p className="mt-2 text-[11px] text-muted-foreground">أكثر من وسيطة تُنشر كألبوم على فيسبوك وكاروسيل على إنستجرام — أما باقي المنصات فتأخذ الصورة الأولى.</p> : null}
+        {reelOpen || media.filter((item) => item.kind === "image").length >= 2 ? <div className="mt-3"><ReelStudio workspaceId={workspaceId} images={media.filter((item) => item.kind === "image").map((item) => item.url)} aspect={aiAspect} attached={media.map((item) => item.url)} onAttach={(url) => addMedia([{ url, kind: "video", label: "ريلز من صورك" }])} /></div> : null}
+      </div>
+
       {/* المنصات: كل منصات النشر المدعومة كخيارات — والمطلوب صراحةً مُبرَز */}
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-bold text-muted-foreground">انشر على</span>
@@ -654,244 +725,6 @@ export function PublishPanel({
           industry={workspace?.industry ?? undefined}
           onApply={(next) => setText(next)}
         />
-      </div>
-
-      {/* الوسائط */}
-      <div className="mt-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-xs font-bold text-muted-foreground">
-            الصور والفيديو {media.length ? `(${media.length.toLocaleString("en-US")}/10)` : ""}
-          </span>
-          {media.length ? (
-            <button
-              type="button"
-              onClick={() => setMedia([])}
-              className="inline-flex items-center gap-1 text-[11px] font-bold text-muted-foreground hover:text-coral"
-            >
-              <Trash2 className="size-3.5" /> امسح الكل
-            </button>
-          ) : null}
-        </div>
-
-        <div className="mt-3 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            disabled={uploading || media.length >= 10}
-            className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-bold hover:bg-secondary disabled:opacity-60"
-          >
-            {uploading ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <ImagePlus className="size-3.5" />
-            )}
-            ارفع صوراً/فيديو
-          </button>
-          <button
-            type="button"
-            onClick={() => void runGenerate("auto")}
-            disabled={!!aiBusy || media.length >= 10}
-            className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-bold hover:bg-secondary disabled:opacity-60"
-          >
-            {aiBusy === "auto" ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <Sparkles className="size-3.5" />
-            )}
-            ولّد صورة من نص المنشور
-          </button>
-          <button
-            type="button"
-            onClick={() => setAiOpen((v) => !v)}
-            aria-expanded={aiOpen}
-            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${
-              aiOpen
-                ? "border-foreground bg-foreground text-background"
-                : "border-border hover:bg-secondary"
-            }`}
-          >
-            <Wand2 className="size-3.5" /> ولّد صورة بوصفي
-          </button>
-          {generated && !media.some((m) => m.url === generated) ? (
-            <button
-              type="button"
-              onClick={() =>
-                addMedia([{ url: generated, kind: "image", label: "الصورة المولّدة" }])
-              }
-              className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-bold hover:bg-secondary"
-            >
-              <Sparkles className="size-3.5" /> أعد الصورة المولّدة
-            </button>
-          ) : null}
-          <input
-            ref={fileRef}
-            type="file"
-            multiple
-            accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime"
-            className="hidden"
-            onChange={(e) => void onFiles(e.target.files)}
-          />
-          <button
-            type="button"
-            onClick={() => setReelOpen((v) => !v)}
-            aria-expanded={reelOpen}
-            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${
-              reelOpen
-                ? "border-foreground bg-foreground text-background"
-                : "border-border hover:bg-secondary"
-            }`}
-          >
-            <Film className="size-3.5" /> استوديو الريلز من صورك
-          </button>
-          <button
-            type="button"
-            onClick={() => setVideoOpen((v) => !v)}
-            aria-expanded={videoOpen}
-            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${
-              videoOpen
-                ? "border-foreground bg-foreground text-background"
-                : "border-border hover:bg-secondary"
-            }`}
-          >
-            <Clapperboard className="size-3.5" /> فيديو بالذكاء الاصطناعي
-          </button>
-        </div>
-
-        {videoOpen ? (
-          <div className="mt-3 rounded-2xl border border-dashed border-border bg-card/70 p-3">
-            <p className="text-[11px] font-bold text-muted-foreground">
-              مولّد الفيديو والريلز بالذكاء الاصطناعي — الواجهة جاهزة، وسنربط المزوّد قريباً.
-            </p>
-            <textarea
-              value={videoPrompt}
-              onChange={(e) => setVideoPrompt(e.target.value)}
-              rows={2}
-              dir="auto"
-              placeholder="صف الفيديو: مثلاً «لقطة قريبة لفنجان قهوة مع بخار ونص ترويجي»"
-              className="mt-2 w-full resize-none rounded-xl border border-border bg-background p-2.5 text-sm outline-none focus:ring-2 focus:ring-foreground/20"
-            />
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <label className="inline-flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground">
-                المدة
-                <select
-                  value={videoSeconds}
-                  onChange={(e) => setVideoSeconds(Number(e.target.value))}
-                  className="rounded-full border border-border bg-card px-2.5 py-1.5 text-xs font-bold text-foreground"
-                >
-                  {[5, 8, 10, 15].map((n) => (
-                    <option key={n} value={n}>
-                      {n} ثانية
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="inline-flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground">
-                المقاس
-                <select
-                  value={videoAspect}
-                  onChange={(e) => setVideoAspect(e.target.value as typeof videoAspect)}
-                  className="rounded-full border border-border bg-card px-2.5 py-1.5 text-xs font-bold text-foreground"
-                >
-                  <option value="story">ريلز / ستوري (9:16)</option>
-                  <option value="square">مربع (1:1)</option>
-                  <option value="landscape">عرضي (16:9)</option>
-                </select>
-              </label>
-              <button
-                type="button"
-                disabled
-                title="سيُربط مزوّد توليد الفيديو قريباً"
-                className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-4 py-1.5 text-xs font-bold text-background opacity-60"
-              >
-                <Clapperboard className="size-3.5" /> ولّد الفيديو · قريباً
-              </button>
-            </div>
-          </div>
-        ) : null}
-
-        {aiOpen ? (
-          <div className="mt-3 rounded-2xl border border-border bg-card/70 p-3">
-            <textarea
-              value={aiPrompt}
-              onChange={(e) => setAiPrompt(e.target.value)}
-              rows={2}
-              dir="auto"
-              placeholder="صف الصورة التي تريدها: مثلاً «طبق كبسة بلحم على طاولة خشبية بإضاءة دافئة»"
-              className="w-full resize-none rounded-xl border border-border bg-background p-2.5 text-sm outline-none focus:ring-2 focus:ring-foreground/20"
-            />
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <label className="inline-flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground">
-                عدد الصور
-                <select
-                  value={aiCount}
-                  onChange={(e) => setAiCount(Number(e.target.value))}
-                  className="rounded-full border border-border bg-card px-2.5 py-1.5 text-xs font-bold text-foreground"
-                >
-                  {[1, 2, 3, 4].map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="inline-flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground">
-                المقاس
-                <select
-                  value={aiAspect}
-                  onChange={(e) => setAiAspect(e.target.value as typeof aiAspect)}
-                  className="rounded-full border border-border bg-card px-2.5 py-1.5 text-xs font-bold text-foreground"
-                >
-                  <option value="square">مربع (منشور)</option>
-                  <option value="portrait">طولي</option>
-                  <option value="landscape">عرضي</option>
-                  <option value="story">ستوري / ريلز</option>
-                </select>
-              </label>
-              <button
-                type="button"
-                onClick={() => void runGenerate("manual")}
-                disabled={!!aiBusy || !aiPrompt.trim()}
-                className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-4 py-1.5 text-xs font-bold text-background disabled:opacity-60"
-              >
-                {aiBusy === "manual" ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <Wand2 className="size-3.5" />
-                )}
-                ولّد الآن
-              </button>
-            </div>
-          </div>
-        ) : null}
-
-        {media.some((m) => m.kind === "video") ? (
-          <p className="mt-2 inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-            <Film className="size-3.5" /> الفيديو يُنشر على فيسبوك وإنستجرام (Reels عمودي حتى ٩٠
-            ثانية).
-          </p>
-        ) : null}
-        {media.length > 1 ? (
-          <p className="mt-2 text-[11px] text-muted-foreground">
-            أكثر من وسيطة تُنشر كألبوم على فيسبوك وكاروسيل على إنستجرام — أما باقي المنصات فتأخذ
-            الصورة الأولى.
-          </p>
-        ) : null}
-        {reelOpen || media.filter((item) => item.kind === "image").length >= 2 ? (
-          <div className="mt-3">
-            <ReelStudio
-              workspaceId={workspaceId}
-              images={media.filter((item) => item.kind === "image").map((item) => item.url)}
-              aspect={aiAspect}
-              attached={media.map((item) => item.url)}
-              onAttach={(url) => addMedia([{ url, kind: "video", label: "ريلز من صورك" }])}
-            />
-          </div>
-        ) : null}
-        {active.includes("instagram") && !media.length ? (
-          <p className="mt-2 text-xs text-muted-foreground">
-            إنستجرام يتطلّب صورة أو فيديو — ولّد صورة أو ارفع من جهازك.
-          </p>
-        ) : null}
       </div>
 
       {/* المواعيد */}
