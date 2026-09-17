@@ -178,6 +178,8 @@ export function PublishPanel({
 
   // توليد صور بالذكاء الاصطناعي: تلقائياً من نص المنشور، أو من وصف يكتبه المستخدم.
   const makeMedia = useServerFn(generateMedia);
+  const removeMedia = useServerFn(deleteMedia);
+
   const [aiOpen, setAiOpen] = useState(false);
   const [reelOpen, setReelOpen] = useState(false);
   const [videoOpen, setVideoOpen] = useState(false);
