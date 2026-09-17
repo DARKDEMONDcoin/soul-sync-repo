@@ -112,11 +112,13 @@ export async function judgeAndImprove(input: JudgeInput): Promise<JudgeVerdict> 
     return { score: verdict.score, issues: verdict.issues, output: original, revised: false };
   }
 
-  // الإصلاح الموجّه للمخرجات التي يمكن إعادة كتابتها كاملة بأمان. المخرجات الضخمة
-  // (خطة ١٢ يوماً، مقال ركيزة) لا تُعاد كتابتها: إعادة الكتابة تفقد محتوى وتضيف دقيقة كاملة.
-  if (original.length > 6000) {
+  // الإصلاح الموجّه يشمل الآن المخرجات الطويلة أيضاً (مقال ركيزة، خطة، تقرير) لأنها
+  // أكبر أثراً عند الرسوب. حاجز الطول أدناه (٧٠٪ من الأصل) يمنع فقدان المحتوى،
+  // وما يتجاوز هذا الحجم فعلاً تصعب إعادة كتابته في نداء واحد بلا بتر.
+  if (original.length > 14_000) {
     return { score: verdict.score, issues: verdict.issues, output: original, revised: false };
   }
+
 
   try {
     const fixed = (
@@ -135,7 +137,7 @@ export async function judgeAndImprove(input: JudgeInput): Promise<JudgeVerdict> 
               .join("\n\n"),
           },
         ],
-        { maxTokens: 6000, timeoutMs: 45_000, attempts: 1 },
+        { maxTokens: 14_000, timeoutMs: 90_000, attempts: 1 },
       )
     ).trim();
 
