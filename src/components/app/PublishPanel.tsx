@@ -32,7 +32,7 @@ import {
   scheduleSocialPost,
   uploadSocialMedia,
 } from "@/lib/social-queue.functions";
-import { generateMedia } from "@/lib/media.functions";
+import { deleteMedia, generateMedia } from "@/lib/media.functions";
 import { bestPostingTimes } from "@/lib/best-time.functions";
 import { saveLearningFeedback } from "@/lib/learning.functions";
 
