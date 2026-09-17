@@ -119,28 +119,29 @@ async function readResponsesStream(res: Response): Promise<string> {
     if (!trimmed.startsWith("data:")) return;
     const payload = trimmed.slice(5).trim();
     if (!payload || payload === "[DONE]") return;
+    let parsed: {
+      type?: string;
+      delta?: unknown;
+      response?: unknown;
+      error?: { message?: string };
+    };
     try {
-      const parsed = JSON.parse(payload) as {
-        type?: string;
-        delta?: unknown;
-        response?: unknown;
-        error?: { message?: string };
-      };
-      if (parsed.type === "response.output_text.delta" && typeof parsed.delta === "string") {
-        text += parsed.delta;
-      }
-      if (parsed.type === "response.reasoning_summary_text.delta" && typeof parsed.delta === "string") {
-        reasoningFallback += parsed.delta;
-      }
-      if (parsed.type === "response.completed") {
-        const completed = extractCompletedText(parsed.response);
-        if (completed.trim()) text = completed;
-      }
-      if (parsed.type === "response.failed" || parsed.type === "error") {
-        throw new Error(parsed.error?.message ?? "فشل تحسين المنشور عبر Lovable AI.");
-      }
-    } catch (error) {
-      if (error instanceof Error && /فشل تحسين|Lovable AI/.test(error.message)) throw error;
+      parsed = JSON.parse(payload) as typeof parsed;
+    } catch {
+      return;
+    }
+    if (parsed.type === "response.output_text.delta" && typeof parsed.delta === "string") {
+      text += parsed.delta;
+    }
+    if (parsed.type === "response.reasoning_summary_text.delta" && typeof parsed.delta === "string") {
+      reasoningFallback += parsed.delta;
+    }
+    if (parsed.type === "response.completed") {
+      const completed = extractCompletedText(parsed.response);
+      if (completed.trim()) text = completed;
+    }
+    if (parsed.type === "response.failed" || parsed.type === "error") {
+      throw new Error(parsed.error?.message ?? "فشل تحسين المنشور عبر Lovable AI.");
     }
   }
 
@@ -173,8 +174,9 @@ async function callLovableRewrite(messages: ChatMessage[]): Promise<string> {
   });
 
   let lastError = "";
+  let waitMs = 0;
   for (let attempt = 0; attempt < 3; attempt++) {
-    if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 900 * 2 ** (attempt - 1)));
+    if (waitMs > 0) await new Promise((resolve) => setTimeout(resolve, waitMs));
     const res = await fetch(GATEWAY_RESPONSES, {
       method: "POST",
       headers: {
@@ -189,6 +191,8 @@ async function callLovableRewrite(messages: ChatMessage[]): Promise<string> {
       const raw = await res.text().catch(() => "");
       lastError = userFacingGatewayError(res.status, raw);
       if (res.status !== 429 && res.status < 500) throw new Error(lastError);
+      const retryAfter = Number(res.headers.get("Retry-After") ?? "");
+      waitMs = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 900 * 2 ** attempt;
       continue;
     }
     const out = await readResponsesStream(res);
