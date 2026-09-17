@@ -44136,8 +44136,10 @@ html {
   display: flex;
   align-items: center;
   gap: 0.1rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: center;
+  max-width: 100%;
+  overflow: hidden;
 }
 .post-calendar-day-thumbs img {
   width: 0.85rem;
