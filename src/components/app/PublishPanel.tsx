@@ -307,15 +307,19 @@ export function PublishPanel({
         at: new Date(post.scheduled_at),
         provider: post.provider,
         status: post.status,
+        image: post.image_url ?? null,
+        body: (post.body ?? "").trim(),
       })),
       ...slots.map((slot, index) => ({
         id: `draft-${index}`,
         at: new Date(slot),
-        provider: active[0] ?? "instagram",
+        provider: active[0] ?? requested[0] ?? "instagram",
         status: "draft",
+        image: media.find((m) => m.kind === "image")?.url ?? null,
+        body: text.trim(),
       })),
     ],
-    [socialPosts, slots, active],
+    [socialPosts, slots, active, requested, media, text],
   );
 
   const onFiles = async (files: FileList | null) => {
