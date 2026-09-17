@@ -224,6 +224,34 @@ export function auditOutput(input: {
       add("plan-owner", "حدّد مسؤولاً لكل مهمة ومعيار إنجاز واضحاً.", 10);
   }
 
+  if (kind === "social") {
+    const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+    const hook = lines[0] ?? "";
+    if (hook.length > 95)
+      add("social-hook", "اجعل السطر الأول خطافاً قصيراً (أقل من ٩٠ حرفاً) يوقف التمرير فوراً.", 12);
+    const tags = text.match(/#[\p{L}\p{N}_]+/gu) ?? [];
+    if (tags.length > 12)
+      add("social-hashtags", `قلّل الهاشتاقات إلى ٥–٩ موزّعة بين واسع ومتخصص (الحالي ${tags.length}).`, 8);
+    if (!/[؟?]|(?:احجز|اطلب|جرّب|سجّل|تواصل|اكتب|شارك|احفظ|زور|اشترِ)/.test(text))
+      add("social-cta", "أضف دعوة فعل واحدة واضحة في آخر المنشور (فعل أمر أو سؤال مباشر).", 12);
+    const emojis = (text.match(/\p{Extended_Pictographic}/gu) ?? []).length;
+    if (emojis > 8)
+      add("social-emoji", `قلّل الرموز التعبيرية (الحالي ${emojis}) إلى رمز واحد لكل فقرة كحد أقصى.`, 6);
+    if (/!{2,}|[A-Z]{8,}/.test(text))
+      add("social-shout", "احذف علامات التعجّب المتكررة والكتابة بحروف كبيرة — تقلل الثقة.", 6);
+  }
+
+  if (kind === "design") {
+    if (!/(?:نص بديل|alt)\s*[:：]/i.test(text))
+      add("design-alt", "أضف «نص بديل:» يصف الصورة لمن لا يراها في سطر واحد.", 12);
+    if (!/(?:\d{3,4}\s*[x×]\s*\d{3,4}|مقاس|أبعاد)/i.test(text))
+      add("design-size", "حدّد المقاس بالبكسل المناسب للمنصة (مثال: 1080×1350).", 10);
+    if (!/(?:تباين|contrast|#[0-9a-fA-F]{6})/.test(text))
+      add("design-contrast", "اذكر ألوان العلامة بكودها ونسبة تباين النص (٤٫٥:١ على الأقل).", 8);
+  }
+
+
+
   // مهام بلا تاريخ في مخرجات التنفيذ اليومي (إيفا خصوصاً).
   if (input.employeeId === "eva" && /(?:مهام|المتابعات|خطوات)/.test(text) && !hasDate(text))
     add("eva-date", "أعطِ كل مهمة ومتابعة تاريخاً محدداً بدل «قريباً» أو «لاحقاً».", 10);
