@@ -44,6 +44,7 @@ type BestTimes = {
 };
 
 const WEEKDAYS = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+const WEEKDAYS_SHORT = ["أحد", "إثنين", "ثلاثاء", "أربعاء", "خميس", "جمعة", "سبت"];
 
 /** يلتقط أول صورة داخل المخرج (رابط مباشر أو صيغة ماركداون). */
 function imageFromOutput(text: string | null | undefined): string | null {
@@ -146,9 +147,32 @@ export function PublishPanel({
 
   // الوسائط: أكثر من صورة/فيديو معاً — الصورة المولّدة تُقترح ويمكن حذفها أو إضافة غيرها.
   const generated = imageFromOutput(body);
+  // مفتاح ثابت لهذا المنشور كي لا تضيع الوسائط المولّدة/المرفوعة عند تحديث الصفحة.
+  const mediaKey = `sahl:post-media:${taskId ?? body.slice(0, 80)}`;
   const [media, setMedia] = useState<Media[]>(() =>
     generated ? [{ url: generated, kind: "image", label: "الصورة المولّدة" }] : [],
   );
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const saved = window.localStorage.getItem(mediaKey);
+      if (!saved) return;
+      const parsed = JSON.parse(saved) as Media[];
+      if (Array.isArray(parsed) && parsed.length) setMedia(parsed.slice(0, 10));
+    } catch {
+      /* تجاهل أي تخزين تالف */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mediaKey]);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      if (media.length) window.localStorage.setItem(mediaKey, JSON.stringify(media));
+      else window.localStorage.removeItem(mediaKey);
+    } catch {
+      /* تجاهل امتلاء التخزين */
+    }
+  }, [media, mediaKey]);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -205,7 +229,8 @@ export function PublishPanel({
 
   /** يجلب أفضل المواعيد الحقيقية للمنصة الأولى المختارة (جمهورك ← سجلّك ← متوسطات). */
   const loadBestTimes = async () => {
-    const target = active[0];
+    // نقترح الوقت حتى قبل ربط المنصة: نعتمد المنصة المطلوبة أو أي منصة مربوطة.
+    const target = active[0] ?? requested[0] ?? connected[0];
     if (!target) return;
     setLoadingTimes(true);
     setNote(null);
@@ -959,8 +984,10 @@ export function PublishPanel({
               </button>
             </div>
             <div className="post-calendar-weekdays">
-              {WEEKDAYS.map((day) => (
-                <span key={day}>{day.slice(0, 2)}</span>
+              {WEEKDAYS.map((day, dayIndex) => (
+                <span key={day} title={day}>
+                  {WEEKDAYS_SHORT[dayIndex]}
+                </span>
               ))}
             </div>
             <div className="post-calendar-grid">
@@ -1079,7 +1106,9 @@ export function PublishPanel({
                   <button
                     type="button"
                     onClick={() => void loadBestTimes()}
-                    disabled={!active.length || loadingTimes}
+                    disabled={
+                      (!active.length && !requested.length && !connected.length) || loadingTimes
+                    }
                     className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-2 text-xs font-bold hover:bg-secondary disabled:opacity-60"
                   >
                     {loadingTimes ? (
