@@ -60,11 +60,11 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
 
       <WorkspaceCard />
 
-      <div className="min-h-0 flex-1">
+      <div className="flex min-h-0 flex-1 flex-col">
         <div className="mb-2 px-2">
           <p className="text-[0.68rem] font-bold text-muted-foreground">الموظفون</p>
         </div>
-        <div className="space-y-1.5 overflow-y-auto">
+        <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto">
           {team.map((m) => (
             <Link
               key={m.id}
