@@ -240,6 +240,7 @@ export function PublishPanel({
           workspaceId,
           provider: target,
           tzOffsetMinutes: -new Date().getTimezoneOffset(),
+          postText: text.trim().slice(0, 6000) || undefined,
         },
       })) as BestTimes;
       setBestTimes(result);
