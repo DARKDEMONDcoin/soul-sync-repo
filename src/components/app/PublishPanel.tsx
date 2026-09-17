@@ -253,7 +253,7 @@ export function PublishPanel({
       setBestTimes({
         source: "baseline",
         samples: 0,
-        note: e instanceof Error ? e.message : "تعذّر حساب بيانات جمهورك الآن.",
+        note: `تعذّر حساب بيانات جمهورك الآن — هذا متوسط عام للمنصة. (${e instanceof Error ? e.message : "خطأ غير معروف"})`,
         slots: [{ at: at.toISOString(), hour: at.getHours(), weekday: at.getDay(), score: 0 }],
       });
     } finally {
