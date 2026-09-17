@@ -160,32 +160,43 @@ async function callLovableRewrite(messages: ChatMessage[]): Promise<string> {
   const key = await getSecret("LOVABLE_API_KEY");
   if (!key) throw new Error("إعداد Lovable AI غير مكتمل. أعد المحاولة بعد تفعيل المفتاح.");
 
-  const res = await fetch(GATEWAY_RESPONSES, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Lovable-API-Key": key,
-      "X-Lovable-AIG-SDK": "fetch",
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      input: messages.map((message) => ({
-        role: message.role,
-        content: [{ type: message.role === "assistant" ? "output_text" : "input_text", text: message.content }],
-      })),
-      stream: true,
-      reasoning: { effort: "low", summary: "auto" },
-      include: ["reasoning.encrypted_content"],
-    }),
+  const body = JSON.stringify({
+    model: MODEL,
+    input: messages.map((message) => ({
+      role: message.role,
+      content: [{ type: message.role === "assistant" ? "output_text" : "input_text", text: message.content }],
+    })),
+    stream: true,
+    store: false,
+    reasoning: { effort: "low", summary: "auto" },
+    include: ["reasoning.encrypted_content"],
   });
 
-  if (!res.ok) {
-    const raw = await res.text().catch(() => "");
-    throw new Error(userFacingGatewayError(res.status, raw));
+  let lastError = "";
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 900 * 2 ** (attempt - 1)));
+    const res = await fetch(GATEWAY_RESPONSES, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Lovable-API-Key": key,
+        "X-Lovable-AIG-SDK": "fetch",
+      },
+      body,
+    });
+
+    if (!res.ok) {
+      const raw = await res.text().catch(() => "");
+      lastError = userFacingGatewayError(res.status, raw);
+      if (res.status !== 429 && res.status < 500) throw new Error(lastError);
+      continue;
+    }
+    const out = await readResponsesStream(res);
+    if (!out) throw new Error("لم يرجع Lovable AI نصاً قابلاً للاستخدام الآن.");
+    return out;
   }
-  const out = await readResponsesStream(res);
-  if (!out) throw new Error("لم يرجع Lovable AI نصاً قابلاً للاستخدام الآن.");
-  return out;
+
+  throw new Error(lastError || "Lovable AI مشغول الآن. أعد المحاولة بعد قليل.");
 }
 
 function splitVariants(raw: string, count: number): string[] {
@@ -224,7 +235,7 @@ export async function improvePost(input: ImproveInput): Promise<ImproveResult> {
       {
         role: "user",
         content: [
-          `اكتب ${count} نسخ مختلفة فقط.` ,
+          `اكتب ${count} نسخ مختلفة فقط.`,
           `افصل بين كل نسخة والتي بعدها بسطر يحتوي بالضبط: ${VARIANT_SEPARATOR}`,
           "لا تكتب عناوين ولا شرحاً ولا ترقيماً خارج نصوص المنشورات.",
           "ضع الهاشتاقات في آخر النص فقط، ولا تضف معلومة غير موجودة في الأصل.",
